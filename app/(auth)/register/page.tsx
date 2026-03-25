@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { registerBusiness } from '@/app/actions/register'
 
 const plans = [
   {
@@ -110,86 +111,36 @@ export default function RegisterPage() {
     }
 
     setLoading(true)
-    const supabase = createClient()
-    const slug = slugify(form.businessName)
 
-    // 1. Sign up
-    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+    // Server action ile kullanıcı + işletme oluştur (email onayı olmadan)
+    const result = await registerBusiness({
       email: form.email,
       password: form.password,
-      options: {
-        data: {
-          full_name: form.ownerName,
-          role: 'isletme',
-        },
-      },
+      ownerName: form.ownerName,
+      businessName: form.businessName,
+      phone: form.phone,
+      plan: selectedPlan,
     })
 
-    if (signUpError) {
-      if (signUpError.message.includes('already registered')) {
-        setError('Bu e-posta adresi zaten kayıtlı. Lütfen giriş yapın.')
-      } else {
-        setError('Kayıt sırasında bir hata oluştu: ' + signUpError.message)
-      }
+    if (result.error) {
+      setError(result.error)
       setLoading(false)
       return
     }
 
-    if (!authData.user) {
-      setError('Kullanıcı oluşturulamadı. Lütfen tekrar deneyin.')
+    // Kayıt başarılı, giriş yap
+    const supabase = createClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: form.email,
+      password: form.password,
+    })
+
+    if (signInError) {
+      setError('Kayıt başarılı! Şimdi giriş yapabilirsiniz.')
       setLoading(false)
+      router.push('/login')
       return
     }
-
-    const userId = authData.user.id
-
-    // 2. Insert business
-    const { data: businessData, error: businessError } = await supabase
-      .from('businesses')
-      .insert({
-        name: form.businessName,
-        slug,
-        owner_id: userId,
-        phone: form.phone || null,
-        plan: selectedPlan,
-        status: 'aktif',
-      })
-      .select()
-      .single()
-
-    if (businessError) {
-      setError('İşletme oluşturulurken bir hata oluştu: ' + businessError.message)
-      setLoading(false)
-      return
-    }
-
-    const businessId = businessData.id
-
-    // 3. Update profile with business_id
-    await supabase
-      .from('profiles')
-      .update({ business_id: businessId })
-      .eq('id', userId)
-
-    // 4. Insert default working hours (Mon-Sat open, Sun closed)
-    const workingHours = [
-      { business_id: businessId, day: 0, is_open: false, open_time: '09:00', close_time: '18:00' },
-      { business_id: businessId, day: 1, is_open: true, open_time: '09:00', close_time: '18:00' },
-      { business_id: businessId, day: 2, is_open: true, open_time: '09:00', close_time: '18:00' },
-      { business_id: businessId, day: 3, is_open: true, open_time: '09:00', close_time: '18:00' },
-      { business_id: businessId, day: 4, is_open: true, open_time: '09:00', close_time: '18:00' },
-      { business_id: businessId, day: 5, is_open: true, open_time: '09:00', close_time: '18:00' },
-      { business_id: businessId, day: 6, is_open: true, open_time: '09:00', close_time: '18:00' },
-    ]
-    await supabase.from('working_hours').insert(workingHours)
-
-    // 5. Insert 3 default services
-    const defaultServices = [
-      { business_id: businessId, name: 'Saç Kesimi', duration: 30, price: 150, is_active: true },
-      { business_id: businessId, name: 'Sakal Tıraş', duration: 20, price: 120, is_active: true },
-      { business_id: businessId, name: 'Saç + Sakal', duration: 45, price: 250, is_active: true },
-    ]
-    await supabase.from('services').insert(defaultServices)
 
     router.push('/admin')
     router.refresh()
