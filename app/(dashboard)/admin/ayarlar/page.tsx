@@ -21,9 +21,17 @@ export default function AyarlarPage() {
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoUploadSuccess, setLogoUploadSuccess] = useState(false)
   const [logoDragOver, setLogoDragOver] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const fetchData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -238,7 +246,7 @@ export default function AyarlarPage() {
   }
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: '700px' }}>
+    <div style={{ padding: isMobile ? '16px' : '32px 36px', maxWidth: '700px' }}>
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: '26px', color: 'var(--white)', letterSpacing: '-0.02em', marginBottom: '6px' }}>
           Ayarlar
@@ -373,7 +381,7 @@ export default function AyarlarPage() {
               ))}
             </select>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
             <div>
               <label style={labelStyle}>Telefon</label>
               <input type="tel" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} placeholder="0212 555 00 00" style={inputStyle} onFocus={(e) => { e.target.style.borderColor = '#454540' }} onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }} />
@@ -435,10 +443,6 @@ export default function AyarlarPage() {
                 <div
                   key={i}
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: '120px 40px 1fr 16px 1fr',
-                    alignItems: 'center',
-                    gap: '12px',
                     padding: '10px 14px',
                     background: 'var(--bg)',
                     border: '1px solid var(--line)',
@@ -446,48 +450,67 @@ export default function AyarlarPage() {
                     opacity: h.is_open ? 1 : 0.5,
                   }}
                 >
-                  <span style={{ fontSize: '13px', color: 'var(--white)', fontWeight: '500' }}>{DAYS[i]}</span>
-                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', position: 'relative' }}>
-                    <input
-                      type="checkbox"
-                      checked={h.is_open}
-                      onChange={(e) => updateHour(i, 'is_open', e.target.checked)}
-                      style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--gold)' }}
-                    />
-                  </label>
-                  <input
-                    type="time"
-                    value={h.open_time}
-                    disabled={!h.is_open}
-                    onChange={(e) => updateHour(i, 'open_time', e.target.value)}
-                    style={{
-                      padding: '6px 10px',
-                      background: 'var(--bg2)',
-                      border: '1px solid var(--line)',
-                      borderRadius: '3px',
-                      color: 'var(--white)',
-                      fontSize: '12px',
-                      outline: 'none',
-                      colorScheme: 'dark',
-                    }}
-                  />
-                  <span style={{ fontSize: '11px', color: 'var(--muted)', textAlign: 'center' }}>—</span>
-                  <input
-                    type="time"
-                    value={h.close_time}
-                    disabled={!h.is_open}
-                    onChange={(e) => updateHour(i, 'close_time', e.target.value)}
-                    style={{
-                      padding: '6px 10px',
-                      background: 'var(--bg2)',
-                      border: '1px solid var(--line)',
-                      borderRadius: '3px',
-                      color: 'var(--white)',
-                      fontSize: '12px',
-                      outline: 'none',
-                      colorScheme: 'dark',
-                    }}
-                  />
+                  {isMobile ? (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: h.is_open ? '10px' : '0' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--white)', fontWeight: '500' }}>{DAYS[i]}</span>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={h.is_open}
+                            onChange={(e) => updateHour(i, 'is_open', e.target.checked)}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--gold)' }}
+                          />
+                        </label>
+                      </div>
+                      {h.is_open && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="time"
+                            value={h.open_time}
+                            disabled={!h.is_open}
+                            onChange={(e) => updateHour(i, 'open_time', e.target.value)}
+                            style={{ flex: 1, padding: '6px 8px', background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--white)', fontSize: '12px', outline: 'none', colorScheme: 'dark' }}
+                          />
+                          <span style={{ fontSize: '11px', color: 'var(--muted)' }}>—</span>
+                          <input
+                            type="time"
+                            value={h.close_time}
+                            disabled={!h.is_open}
+                            onChange={(e) => updateHour(i, 'close_time', e.target.value)}
+                            style={{ flex: 1, padding: '6px 8px', background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--white)', fontSize: '12px', outline: 'none', colorScheme: 'dark' }}
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: '120px 40px 1fr 16px 1fr', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--white)', fontWeight: '500' }}>{DAYS[i]}</span>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', position: 'relative' }}>
+                        <input
+                          type="checkbox"
+                          checked={h.is_open}
+                          onChange={(e) => updateHour(i, 'is_open', e.target.checked)}
+                          style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--gold)' }}
+                        />
+                      </label>
+                      <input
+                        type="time"
+                        value={h.open_time}
+                        disabled={!h.is_open}
+                        onChange={(e) => updateHour(i, 'open_time', e.target.value)}
+                        style={{ padding: '6px 10px', background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--white)', fontSize: '12px', outline: 'none', colorScheme: 'dark' }}
+                      />
+                      <span style={{ fontSize: '11px', color: 'var(--muted)', textAlign: 'center' }}>—</span>
+                      <input
+                        type="time"
+                        value={h.close_time}
+                        disabled={!h.is_open}
+                        onChange={(e) => updateHour(i, 'close_time', e.target.value)}
+                        style={{ padding: '6px 10px', background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--white)', fontSize: '12px', outline: 'none', colorScheme: 'dark' }}
+                      />
+                    </div>
+                  )}
                 </div>
               )
             })}

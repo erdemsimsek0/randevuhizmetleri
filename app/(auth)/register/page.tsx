@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { registerBusiness } from '@/app/actions/register'
@@ -63,6 +63,7 @@ export default function RegisterPage() {
   const [businessType, setBusinessType] = useState('berber')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
   const [form, setForm] = useState({
     businessName: '',
     ownerName: '',
@@ -71,6 +72,13 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: '',
   })
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const update = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }))
 
@@ -171,7 +179,7 @@ export default function RegisterPage() {
           <p style={{ fontSize: '13px', color: 'var(--muted)' }}>İşletmenizi platforma kaydedin</p>
         </div>
 
-        <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '4px', padding: '32px' }}>
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '4px', padding: isMobile ? '20px' : '32px' }}>
           <h1 style={{ fontSize: '17px', fontWeight: '600', color: 'var(--white)', marginBottom: '24px' }}>
             Kayıt Ol
           </h1>
@@ -194,7 +202,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Business Name + Owner Name */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={labelStyle}>İşletme Adı</label>
                 <input
@@ -229,7 +237,7 @@ export default function RegisterPage() {
             </div>
 
             {/* Email + Phone */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={labelStyle}>E-posta</label>
                 <input
@@ -258,7 +266,7 @@ export default function RegisterPage() {
             </div>
 
             {/* Password + Confirm */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={labelStyle}>Şifre</label>
                 <input
@@ -317,7 +325,7 @@ export default function RegisterPage() {
             {/* Plan Selection */}
             <div>
               <label style={{ ...labelStyle, marginBottom: '12px' }}>Plan Seçin</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '10px' }}>
                 {plans.map((plan) => {
                   const active = selectedPlan === plan.id
                   return (

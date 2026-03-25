@@ -65,8 +65,16 @@ export default function TakvimPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [businessId, setBusinessId] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
 
   const supabase = createClient()
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const weekStart = getWeekStart(weekOffset)
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -123,9 +131,9 @@ export default function TakvimPage() {
   }
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: '1400px' }}>
+    <div style={{ padding: isMobile ? '16px' : '32px 36px', maxWidth: '1400px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
+      <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', marginBottom: '28px', gap: isMobile ? '12px' : '0' }}>
         <div>
           <h1
             style={{
@@ -140,7 +148,7 @@ export default function TakvimPage() {
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--muted)' }}>{weekLabel}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: isMobile ? '100%' : 'auto' }}>
           <button
             onClick={() => setWeekOffset((p) => p - 1)}
             style={{
@@ -151,6 +159,7 @@ export default function TakvimPage() {
               color: 'var(--white)',
               fontSize: '13px',
               cursor: 'pointer',
+              flex: isMobile ? 1 : 'none',
             }}
           >
             ← Önceki
@@ -181,6 +190,7 @@ export default function TakvimPage() {
               color: 'var(--white)',
               fontSize: '13px',
               cursor: 'pointer',
+              flex: isMobile ? 1 : 'none',
             }}
           >
             Sonraki →
@@ -189,13 +199,13 @@ export default function TakvimPage() {
       </div>
 
       {/* Week Grid */}
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(7, minmax(140px, 1fr))',
           gap: '8px',
-          overflowX: 'auto',
-          minWidth: 0,
+          minWidth: isMobile ? '980px' : '0',
         }}
       >
         {weekDays.map((d, i) => {
@@ -336,6 +346,7 @@ export default function TakvimPage() {
             </div>
           )
         })}
+      </div>
       </div>
     </div>
   )

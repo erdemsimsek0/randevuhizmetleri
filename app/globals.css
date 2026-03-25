@@ -82,3 +82,17 @@ body {
   -webkit-text-fill-color: transparent;
   animation: goldSheen 4s ease-in-out infinite;
 }
+
+/* Mobile utilities */
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+  .mobile-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .mobile-stack { flex-direction: column !important; }
+  .mobile-full { width: 100% !important; }
+  .mobile-pad { padding: 16px !important; }
+  .mobile-small { font-size: 12px !important; }
+  .mobile-hide-col { display: none !important; }
+}
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+}

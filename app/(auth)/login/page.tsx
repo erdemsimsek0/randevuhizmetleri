@@ -118,7 +118,7 @@ export default function LoginPage() {
             background: 'var(--bg2)',
             border: '1px solid var(--line)',
             borderRadius: '4px',
-            padding: '32px',
+            padding: 'clamp(20px, 5vw, 32px)',
           }}
         >
           <h1 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--white)', marginBottom: '6px', letterSpacing: '-0.01em' }}>

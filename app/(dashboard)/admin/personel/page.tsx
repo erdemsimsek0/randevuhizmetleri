@@ -19,8 +19,16 @@ export default function PersonelPage() {
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
 
   const supabase = createClient()
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const fetchStaff = useCallback(async (bId: string) => {
     const { data } = await supabase
@@ -138,9 +146,9 @@ export default function PersonelPage() {
   const positions = getPositionsForType(businessType)
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: '900px' }}>
+    <div style={{ padding: isMobile ? '16px' : '32px 36px', maxWidth: '900px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px', gap: '12px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <div>
           <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: '26px', color: 'var(--white)', letterSpacing: '-0.02em', marginBottom: '6px' }}>
             Personel
@@ -162,6 +170,8 @@ export default function PersonelPage() {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
+            width: isMobile ? '100%' : 'auto',
+            justifyContent: isMobile ? 'center' : 'flex-start',
           }}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -180,7 +190,7 @@ export default function PersonelPage() {
           Henüz personel yok. Yukarıdan ekleyebilirsiniz.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
           {staffList.map((s) => (
             <div
               key={s.id}
@@ -343,14 +353,15 @@ export default function PersonelPage() {
         <div
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px',
+            alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', zIndex: 50, padding: isMobile ? '0' : '24px',
           }}
           onClick={closeModal}
         >
           <div
             style={{
-              background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '4px',
-              padding: '28px', maxWidth: '440px', width: '100%',
+              background: 'var(--bg2)', border: isMobile ? 'none' : '1px solid var(--line)', borderRadius: isMobile ? '0' : '4px',
+              padding: '28px', maxWidth: isMobile ? '100%' : '440px', width: '100%',
+              height: isMobile ? '100%' : 'auto', maxHeight: isMobile ? '100%' : '90vh', overflowY: 'auto',
             }}
             onClick={(e) => e.stopPropagation()}
           >

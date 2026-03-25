@@ -57,6 +57,7 @@ export default function RandevularPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [updating, setUpdating] = useState<string | null>(null)
   const [businessId, setBusinessId] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
 
   // Add modal state
   const [showAddModal, setShowAddModal] = useState(false)
@@ -76,6 +77,13 @@ export default function RandevularPage() {
   const [addSaving, setAddSaving] = useState(false)
 
   const supabase = createClient()
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const fetchAppointments = useCallback(async (bId: string) => {
     const { data } = await supabase
@@ -105,7 +113,6 @@ export default function RandevularPage() {
         setBusinessId(profile.business_id)
         await fetchAppointments(profile.business_id)
 
-        // Fetch services for the add modal
         const { data: svcData } = await supabase
           .from('services')
           .select('id, name, duration, price')
@@ -113,7 +120,6 @@ export default function RandevularPage() {
           .order('name')
         setServices((svcData as {id: string, name: string, duration: number, price: number}[]) ?? [])
 
-        // Fetch staff for the add modal
         const { data: staffData } = await supabase
           .from('staff')
           .select('id, name')
@@ -153,7 +159,6 @@ export default function RandevularPage() {
     )
     setUpdating(null)
 
-    // Send email notification for confirmed/cancelled status changes
     if (status === 'onaylandi' || status === 'iptal') {
       sendStatusChangeNotification(id, status).catch((err) =>
         console.error('[randevular] notification error:', err)
@@ -213,9 +218,9 @@ export default function RandevularPage() {
   }
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: '1100px' }}>
+    <div style={{ padding: isMobile ? '16px' : '32px 36px', maxWidth: '1100px' }}>
       {/* Header */}
-      <div style={{ marginBottom: '28px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+      <div style={{ marginBottom: '28px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <div>
           <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: '26px', color: 'var(--white)', letterSpacing: '-0.02em', marginBottom: '6px' }}>
             Randevular
@@ -238,6 +243,7 @@ export default function RandevularPage() {
             cursor: 'pointer',
             whiteSpace: 'nowrap',
             flexShrink: 0,
+            width: isMobile ? '100%' : 'auto',
           }}
         >
           + Randevu Ekle
@@ -251,14 +257,14 @@ export default function RandevularPage() {
           placeholder="Müşteri, hizmet veya personel ara..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ ...inputStyle, minWidth: '260px', flex: 1 }}
+          style={{ ...inputStyle, minWidth: isMobile ? '100%' : '260px', flex: isMobile ? '1 1 100%' : 1 }}
           onFocus={(e) => { e.target.style.borderColor = '#454540' }}
           onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ ...inputStyle, cursor: 'pointer' }}
+          style={{ ...inputStyle, cursor: 'pointer', flex: isMobile ? '1 1 calc(50% - 6px)' : 'none' }}
         >
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value} style={{ background: '#111111' }}>
@@ -269,14 +275,14 @@ export default function RandevularPage() {
         {(search || statusFilter) && (
           <button
             onClick={() => { setSearch(''); setStatusFilter('') }}
-            style={{ ...inputStyle, cursor: 'pointer', color: 'var(--muted)', background: 'transparent' }}
+            style={{ ...inputStyle, cursor: 'pointer', color: 'var(--muted)', background: 'transparent', flex: isMobile ? '1 1 calc(50% - 6px)' : 'none' }}
           >
             Temizle ✕
           </button>
         )}
       </div>
 
-      {/* Table */}
+      {/* Table / Cards */}
       <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', overflow: 'hidden' }}>
         {loading ? (
           <div style={{ padding: '60px', textAlign: 'center', color: 'var(--muted)', fontSize: '13px' }}>
@@ -286,99 +292,144 @@ export default function RandevularPage() {
           <div style={{ padding: '60px', textAlign: 'center', color: 'var(--muted)', fontSize: '13px' }}>
             {search || statusFilter ? 'Arama kriterlerine uygun randevu bulunamadı.' : 'Henüz randevu yok.'}
           </div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg)' }}>
-                {['Müşteri', 'Hizmet', 'Personel', 'Tarih / Saat', 'Durum', 'İşlem'].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      padding: '10px 16px',
-                      textAlign: 'left',
-                      fontSize: '10px',
-                      fontWeight: '600',
-                      color: 'var(--muted)',
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
-                      borderBottom: '1px solid var(--line)',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((apt, i) => (
-                <tr
-                  key={apt.id}
-                  style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--line)' : 'none' }}
-                >
-                  <td style={{ padding: '12px 16px' }}>
+        ) : isMobile ? (
+          <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {filtered.map((apt) => (
+              <div key={apt.id} style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '4px', padding: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
                     <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--white)' }}>{apt.customer_name}</div>
                     <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{apt.customer_phone}</div>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--white)' }}>
-                    {apt.service?.name ?? '—'}
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--muted)' }}>
-                    {apt.staff?.name ?? '—'}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ fontSize: '12px', color: 'var(--white)', fontWeight: '500' }}>{apt.date}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{String(apt.time).slice(0, 5)}</div>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <StatusBadge status={apt.status} />
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <select
-                      value={apt.status}
-                      disabled={updating === apt.id}
-                      onChange={(e) => updateStatus(apt.id, e.target.value)}
+                  </div>
+                  <StatusBadge status={apt.status} />
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--white)', marginBottom: '4px' }}>{apt.service?.name ?? '—'}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                  <div>
+                    <div style={{ fontSize: '12px', color: 'var(--white)', fontWeight: '500' }}>{apt.date} · {String(apt.time).slice(0, 5)}</div>
+                    {apt.staff?.name && <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{apt.staff.name}</div>}
+                  </div>
+                  <select
+                    value={apt.status}
+                    disabled={updating === apt.id}
+                    onChange={(e) => updateStatus(apt.id, e.target.value)}
+                    style={{
+                      padding: '4px 8px',
+                      background: 'var(--bg2)',
+                      border: '1px solid var(--line)',
+                      borderRadius: '3px',
+                      color: 'var(--white)',
+                      fontSize: '11px',
+                      cursor: updating === apt.id ? 'wait' : 'pointer',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="bekliyor" style={{ background: '#111111' }}>Bekliyor</option>
+                    <option value="onaylandi" style={{ background: '#111111' }}>Onaylandı</option>
+                    <option value="tamamlandi" style={{ background: '#111111' }}>Tamamlandı</option>
+                    <option value="iptal" style={{ background: '#111111' }}>İptal</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg)' }}>
+                  {['Müşteri', 'Hizmet', 'Personel', 'Tarih / Saat', 'Durum', 'İşlem'].map((h) => (
+                    <th
+                      key={h}
                       style={{
-                        padding: '4px 8px',
-                        background: 'var(--bg)',
-                        border: '1px solid var(--line)',
-                        borderRadius: '3px',
-                        color: 'var(--white)',
-                        fontSize: '11px',
-                        cursor: updating === apt.id ? 'wait' : 'pointer',
-                        outline: 'none',
+                        padding: '10px 16px',
+                        textAlign: 'left',
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        color: 'var(--muted)',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        borderBottom: '1px solid var(--line)',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      <option value="bekliyor" style={{ background: '#111111' }}>Bekliyor</option>
-                      <option value="onaylandi" style={{ background: '#111111' }}>Onaylandı</option>
-                      <option value="tamamlandi" style={{ background: '#111111' }}>Tamamlandı</option>
-                      <option value="iptal" style={{ background: '#111111' }}>İptal</option>
-                    </select>
-                  </td>
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((apt, i) => (
+                  <tr
+                    key={apt.id}
+                    style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--line)' : 'none' }}
+                  >
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--white)' }}>{apt.customer_name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{apt.customer_phone}</div>
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--white)' }}>
+                      {apt.service?.name ?? '—'}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--muted)' }}>
+                      {apt.staff?.name ?? '—'}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--white)', fontWeight: '500' }}>{apt.date}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{String(apt.time).slice(0, 5)}</div>
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <StatusBadge status={apt.status} />
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <select
+                        value={apt.status}
+                        disabled={updating === apt.id}
+                        onChange={(e) => updateStatus(apt.id, e.target.value)}
+                        style={{
+                          padding: '4px 8px',
+                          background: 'var(--bg)',
+                          border: '1px solid var(--line)',
+                          borderRadius: '3px',
+                          color: 'var(--white)',
+                          fontSize: '11px',
+                          cursor: updating === apt.id ? 'wait' : 'pointer',
+                          outline: 'none',
+                        }}
+                      >
+                        <option value="bekliyor" style={{ background: '#111111' }}>Bekliyor</option>
+                        <option value="onaylandi" style={{ background: '#111111' }}>Onaylandı</option>
+                        <option value="tamamlandi" style={{ background: '#111111' }}>Tamamlandı</option>
+                        <option value="iptal" style={{ background: '#111111' }}>İptal</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
+
       {/* Add Appointment Modal */}
       {showAddModal && (
         <div
           style={{
             position: 'fixed', inset: 0, zIndex: 50,
             background: 'rgba(0,0,0,0.7)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '20px',
+            display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center',
+            padding: isMobile ? '0' : '20px',
           }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowAddModal(false) }}
         >
           <div style={{
             background: 'var(--bg2)',
-            border: '1px solid var(--line2)',
-            borderRadius: '4px',
+            border: isMobile ? 'none' : '1px solid var(--line2)',
+            borderRadius: isMobile ? '0' : '4px',
             width: '100%',
-            maxWidth: '480px',
-            maxHeight: '90vh',
+            maxWidth: isMobile ? '100%' : '480px',
+            height: isMobile ? '100%' : 'auto',
+            maxHeight: isMobile ? '100%' : '90vh',
             overflowY: 'auto',
           }}>
             {/* Modal Header */}
@@ -403,7 +454,6 @@ export default function RandevularPage() {
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {/* Customer Name */}
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
                     Müşteri Adı *
@@ -417,7 +467,6 @@ export default function RandevularPage() {
                   />
                 </div>
 
-                {/* Phone */}
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
                     Telefon *
@@ -431,7 +480,6 @@ export default function RandevularPage() {
                   />
                 </div>
 
-                {/* Email */}
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
                     E-posta <span style={{ fontWeight: '400', textTransform: 'none' }}>(isteğe bağlı)</span>
@@ -445,7 +493,6 @@ export default function RandevularPage() {
                   />
                 </div>
 
-                {/* Service */}
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
                     Hizmet *
@@ -464,7 +511,6 @@ export default function RandevularPage() {
                   </select>
                 </div>
 
-                {/* Staff */}
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
                     Personel
@@ -481,7 +527,6 @@ export default function RandevularPage() {
                   </select>
                 </div>
 
-                {/* Date & Time row */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
@@ -509,7 +554,6 @@ export default function RandevularPage() {
                   </div>
                 </div>
 
-                {/* Notes */}
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
                     Notlar <span style={{ fontWeight: '400', textTransform: 'none' }}>(isteğe bağlı)</span>

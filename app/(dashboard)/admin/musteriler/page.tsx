@@ -49,6 +49,14 @@ export default function MusterilerPage() {
   const [search, setSearch] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [businessSlug, setBusinessSlug] = useState<string>('')
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -113,7 +121,7 @@ export default function MusterilerPage() {
   })
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: '1100px', fontFamily: 'DM Sans, sans-serif' }}>
+    <div style={{ padding: isMobile ? '16px' : '32px 36px', maxWidth: '1100px', fontFamily: 'DM Sans, sans-serif' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px' }}>
         <div>
@@ -147,6 +155,34 @@ export default function MusterilerPage() {
       ) : filtered.length === 0 ? (
         <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--muted)', fontSize: '13px' }}>
           {search ? 'Arama sonucu bulunamadı.' : 'Henüz müşteri yok.'}
+        </div>
+      ) : isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {filtered.map((c) => (
+            <div key={c.phone} style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '4px', padding: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--white)' }}>{c.name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', fontFamily: 'monospace', marginTop: '2px' }}>{c.phone}</div>
+                </div>
+                <span style={{ padding: '2px 10px', background: 'var(--gold3)', border: '1px solid rgba(196,154,74,0.2)', borderRadius: '2px', fontSize: '11px', fontWeight: '600', color: 'var(--gold)', whiteSpace: 'nowrap' }}>
+                  {c.appointments.length} randevu
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Son: {formatDate(c.lastDate)}</div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--gold)', marginTop: '2px' }}>{c.totalSpent.toLocaleString('tr-TR')} ₺</div>
+                </div>
+                <button
+                  onClick={() => setSelectedCustomer(c)}
+                  style={{ padding: '7px 16px', background: 'transparent', border: '1px solid var(--line)', borderRadius: '2px', color: 'var(--muted)', fontSize: '11px', fontWeight: '600', cursor: 'pointer', letterSpacing: '0.04em' }}
+                >
+                  Detay
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <>
@@ -202,9 +238,9 @@ export default function MusterilerPage() {
       {selectedCustomer && (
         <div
           onClick={(e) => { if (e.target === e.currentTarget) setSelectedCustomer(null) }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', padding: isMobile ? '0' : '24px' }}
         >
-          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '6px', width: '100%', maxWidth: '640px', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: 'var(--bg2)', border: isMobile ? 'none' : '1px solid var(--line)', borderRadius: isMobile ? '0' : '6px', width: '100%', maxWidth: isMobile ? '100%' : '640px', height: isMobile ? '100%' : 'auto', maxHeight: isMobile ? '100%' : '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {/* Modal Header */}
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>

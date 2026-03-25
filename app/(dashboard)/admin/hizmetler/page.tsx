@@ -16,8 +16,16 @@ export default function HizmetlerPage() {
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
 
   const supabase = createClient()
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const fetchServices = useCallback(async (bId: string) => {
     const { data } = await supabase
@@ -122,8 +130,8 @@ export default function HizmetlerPage() {
   }
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: '900px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px' }}>
+    <div style={{ padding: isMobile ? '16px' : '32px 36px', maxWidth: '900px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px', gap: '12px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <div>
           <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: '26px', color: 'var(--white)', letterSpacing: '-0.02em', marginBottom: '6px' }}>
             Hizmetler
@@ -145,6 +153,8 @@ export default function HizmetlerPage() {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
+            width: isMobile ? '100%' : 'auto',
+            justifyContent: isMobile ? 'center' : 'flex-start',
           }}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -163,7 +173,8 @@ export default function HizmetlerPage() {
         </div>
       ) : (
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? '480px' : 'auto' }}>
             <thead>
               <tr style={{ background: 'var(--bg)' }}>
                 {['Hizmet', 'Süre', 'Fiyat', 'Durum', 'İşlemler'].map((h) => (
@@ -264,6 +275,7 @@ export default function HizmetlerPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -285,8 +297,8 @@ export default function HizmetlerPage() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px' }} onClick={closeModal}>
-          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '4px', padding: '28px', maxWidth: '440px', width: '100%' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', zIndex: 50, padding: isMobile ? '0' : '24px' }} onClick={closeModal}>
+          <div style={{ background: 'var(--bg2)', border: isMobile ? 'none' : '1px solid var(--line)', borderRadius: isMobile ? '0' : '4px', padding: '28px', maxWidth: isMobile ? '100%' : '440px', width: '100%', height: isMobile ? '100%' : 'auto', maxHeight: isMobile ? '100%' : '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--white)', marginBottom: '24px' }}>
               {editItem ? 'Hizmeti Düzenle' : 'Yeni Hizmet'}
             </h3>

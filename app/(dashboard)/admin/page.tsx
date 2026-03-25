@@ -94,7 +94,7 @@ export default async function AdminDashboard() {
   const dateStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}, ${days[now.getDay()]}`
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: '1100px' }}>
+    <div className="admin-dashboard-page">
       {/* Header */}
       <div style={{ marginBottom: '36px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
@@ -120,7 +120,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+      <div className="stat-cards-grid">
         {[
           {
             label: 'Bugünkü Randevular',
@@ -199,9 +199,9 @@ export default async function AdminDashboard() {
 
       <RevenueCharts />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '20px', marginTop: '32px' }}>
+      <div className="dashboard-bottom-grid">
         {/* Recent Appointments Table */}
-        <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px' }}>
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', overflow: 'hidden' }}>
           <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)', letterSpacing: '0.01em' }}>
               Son Randevular
@@ -211,53 +211,56 @@ export default async function AdminDashboard() {
             </Link>
           </div>
           {recentAppointments && recentAppointments.length > 0 ? (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['Müşteri', 'Hizmet', 'Personel', 'Saat', 'Durum'].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        padding: '10px 20px',
-                        textAlign: 'left',
-                        fontSize: '10px',
-                        fontWeight: '600',
-                        color: 'var(--muted)',
-                        letterSpacing: '0.08em',
-                        textTransform: 'uppercase',
-                        borderBottom: '1px solid var(--line)',
-                        background: 'var(--bg)',
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(recentAppointments as (Appointment & { service?: { name: string }; staff?: { name: string } | null })[]).map((apt, i) => (
-                  <tr key={apt.id} style={{ borderBottom: i < recentAppointments.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                    <td style={{ padding: '12px 20px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--white)' }}>{apt.customer_name}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{apt.customer_phone}</div>
-                    </td>
-                    <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--white)' }}>
-                      {apt.service?.name ?? '—'}
-                    </td>
-                    <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--muted)' }}>
-                      {apt.staff?.name ?? '—'}
-                    </td>
-                    <td style={{ padding: '12px 20px' }}>
-                      <div style={{ fontSize: '12px', color: 'var(--white)' }}>{apt.time}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{apt.date}</div>
-                    </td>
-                    <td style={{ padding: '12px 20px' }}>
-                      <StatusBadge status={apt.status} />
-                    </td>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '480px' }}>
+                <thead>
+                  <tr>
+                    {['Müşteri', 'Hizmet', 'Personel', 'Saat', 'Durum'].map((h) => (
+                      <th
+                        key={h}
+                        style={{
+                          padding: '10px 20px',
+                          textAlign: 'left',
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          color: 'var(--muted)',
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          borderBottom: '1px solid var(--line)',
+                          background: 'var(--bg)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(recentAppointments as (Appointment & { service?: { name: string }; staff?: { name: string } | null })[]).map((apt, i) => (
+                    <tr key={apt.id} style={{ borderBottom: i < recentAppointments.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                      <td style={{ padding: '12px 20px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--white)' }}>{apt.customer_name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{apt.customer_phone}</div>
+                      </td>
+                      <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--white)' }}>
+                        {apt.service?.name ?? '—'}
+                      </td>
+                      <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--muted)' }}>
+                        {apt.staff?.name ?? '—'}
+                      </td>
+                      <td style={{ padding: '12px 20px' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--white)' }}>{apt.time}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{apt.date}</div>
+                      </td>
+                      <td style={{ padding: '12px 20px' }}>
+                        <StatusBadge status={apt.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: '13px' }}>
               Henüz randevu yok
@@ -395,6 +398,37 @@ export default async function AdminDashboard() {
           )}
         </div>
       </div>
+
+      <style>{`
+        .admin-dashboard-page {
+          padding: 32px 36px;
+          max-width: 1100px;
+        }
+        .stat-cards-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+          margin-bottom: 32px;
+        }
+        .dashboard-bottom-grid {
+          display: grid;
+          grid-template-columns: 1fr 280px;
+          gap: 20px;
+          margin-top: 32px;
+        }
+        @media (max-width: 768px) {
+          .admin-dashboard-page {
+            padding: 16px;
+          }
+          .stat-cards-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+          }
+          .dashboard-bottom-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
     </div>
   )
 }

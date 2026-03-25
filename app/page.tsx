@@ -48,6 +48,7 @@ const businessTypes = [
 export default function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [navScrolled, setNavScrolled] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -57,7 +58,15 @@ export default function LandingPage() {
 
     const handleScroll = () => setNavScrolled(window.scrollY > 20)
     window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', checkMobile)
+    }
   }, [])
 
   return (
@@ -87,19 +96,21 @@ export default function LandingPage() {
         </Link>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
-          <div style={{ display: 'flex', gap: '24px' }}>
-            {['Özellikler', 'Fiyatlar'].map((item, i) => (
-              <a
-                key={item}
-                href={i === 0 ? '#ozellikler' : '#fiyatlar'}
-                style={{ fontSize: '13px', color: 'var(--muted)', textDecoration: 'none', transition: 'color 0.15s' }}
-                onMouseEnter={(e) => { (e.target as HTMLElement).style.color = 'var(--white)' }}
-                onMouseLeave={(e) => { (e.target as HTMLElement).style.color = 'var(--muted)' }}
-              >
-                {item}
-              </a>
-            ))}
-          </div>
+          {!isMobile && (
+            <div style={{ display: 'flex', gap: '24px' }}>
+              {['Özellikler', 'Fiyatlar'].map((item, i) => (
+                <a
+                  key={item}
+                  href={i === 0 ? '#ozellikler' : '#fiyatlar'}
+                  style={{ fontSize: '13px', color: 'var(--muted)', textDecoration: 'none', transition: 'color 0.15s' }}
+                  onMouseEnter={(e) => { (e.target as HTMLElement).style.color = 'var(--white)' }}
+                  onMouseLeave={(e) => { (e.target as HTMLElement).style.color = 'var(--muted)' }}
+                >
+                  {item}
+                </a>
+              ))}
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {isLoggedIn ? (
               <Link
@@ -241,7 +252,7 @@ export default function LandingPage() {
           </div>
 
           {/* Right: Phone mockup */}
-          <div style={{ flex: '0 0 auto', display: 'flex', justifyContent: 'center' }}>
+          {!isMobile && <div style={{ flex: '0 0 auto', display: 'flex', justifyContent: 'center' }}>
             <div style={{
               width: '240px',
               height: '480px',
@@ -317,6 +328,7 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+          }
         </div>
       </section>
 
