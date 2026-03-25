@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Business, Service, Staff, WorkingHours } from '@/lib/types'
 import { sendNewAppointmentNotification } from '@/app/actions/notifications'
 import { createAppointment } from '@/app/actions/booking'
+import { sendVerificationCode, verifyCode } from '@/app/actions/sms'
 
 interface Product {
   id: string
@@ -74,6 +75,10 @@ export default function BookingWidget({ business, services, staff, workingHours,
   const [bookingError, setBookingError] = useState<string | null>(null)
   const [confirmationId, setConfirmationId] = useState<string | null>(null)
   const [productsOpen, setProductsOpen] = useState(false)
+  const [codeSent, setCodeSent] = useState(false)
+  const [sendingCode, setSendingCode] = useState(false)
+  const [verificationCode, setVerificationCode] = useState('')
+  const [codeError, setCodeError] = useState<string | null>(null)
 
   const supabase = createClient()
   const next7Days = getNext7Days()
@@ -117,6 +122,23 @@ export default function BookingWidget({ business, services, staff, workingHours,
     return generateTimeSlots(h.open_time, h.close_time, duration)
   }
 
+  async function handleSendCode() {
+    if (!customerName.trim() || !customerPhone.trim()) {
+      setCodeError('Ad ve telefon zorunludur.')
+      return
+    }
+    setSendingCode(true)
+    setCodeError(null)
+    const res = await sendVerificationCode(customerPhone.trim())
+    setSendingCode(false)
+    if (res.error) {
+      setCodeError(res.error)
+      return
+    }
+    setCodeSent(true)
+    setVerificationCode('')
+  }
+
   async function handleSubmit() {
     if (!selectedService || !selectedDate || !selectedTime) return
     if (!customerName.trim() || !customerPhone.trim()) {
@@ -127,6 +149,14 @@ export default function BookingWidget({ business, services, staff, workingHours,
     setSubmitting(true)
     setBookingError(null)
 
+    // Verify SMS code first
+    const verifyRes = await verifyCode(customerPhone.trim(), verificationCode)
+    if (verifyRes.error) {
+      setBookingError(verifyRes.error)
+      setSubmitting(false)
+      return
+    }
+
     const result = await createAppointment({
       business_id: business.id,
       staff_id: selectedStaff?.id ?? null,
@@ -136,6 +166,7 @@ export default function BookingWidget({ business, services, staff, workingHours,
       customer_email: customerEmail.trim() || null,
       date: formatDate(selectedDate),
       time: selectedTime,
+      status: 'onaylandi',
     })
 
     if (result.error || !result.data) {
@@ -150,7 +181,6 @@ export default function BookingWidget({ business, services, staff, workingHours,
     setConfirmed(true)
     setSubmitting(false)
 
-    // Send email notification to business owner (fire-and-forget)
     sendNewAppointmentNotification(data.id).catch((err) =>
       console.error('[booking] notification error:', err)
     )
@@ -228,7 +258,7 @@ export default function BookingWidget({ business, services, staff, workingHours,
             }}
           >
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ac478', display: 'inline-block' }} />
-            Onay Bekliyor
+            Onaylandı
           </div>
         </div>
       </div>
@@ -700,95 +730,111 @@ export default function BookingWidget({ business, services, staff, workingHours,
             </div>
           )}
 
-          {/* STEP 4: Contact */}
+          {/* STEP 4: Contact + SMS Verify */}
           {step === 4 && (
             <div style={{ animation: 'fadeUp 0.4s ease both' }}>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--white)', letterSpacing: '0.04em', marginBottom: '14px' }}>İletişim Bilgileri</div>
 
-              {bookingError && (
-                <div style={{ padding: '10px 14px', background: 'rgba(196,74,74,0.1)', border: '1px solid rgba(196,74,74,0.25)', borderRadius: '3px', marginBottom: '16px', fontSize: '12px', color: '#c44a4a' }}>
-                  {bookingError}
-                </div>
-              )}
+              {!codeSent ? (
+                /* Phase 1: Fill contact info */
+                <>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--white)', letterSpacing: '0.04em', marginBottom: '14px' }}>İletişim Bilgileri</div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
-                    Ad Soyad
-                  </label>
-                  <input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Adınız Soyadınız"
-                    style={{
-                      width: '100%', padding: '11px 14px',
-                      background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px',
-                      color: 'var(--white)', fontSize: '14px', outline: 'none',
-                    }}
-                    onFocus={(e) => { e.target.style.borderColor = 'var(--gold)' }}
-                    onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
-                    E-posta <span style={{ color: 'var(--muted)', fontWeight: '400', textTransform: 'none', letterSpacing: 0 }}>(isteğe bağlı)</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="ornek@email.com"
-                    style={{
-                      width: '100%', padding: '11px 14px',
-                      background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px',
-                      color: 'var(--white)', fontSize: '14px', outline: 'none',
-                    }}
-                    onFocus={(e) => { e.target.style.borderColor = 'var(--gold)' }}
-                    onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
-                    Telefon
-                  </label>
-                  <input
-                    type="tel"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="0532 000 00 00"
-                    style={{
-                      width: '100%', padding: '11px 14px',
-                      background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px',
-                      color: 'var(--white)', fontSize: '14px', outline: 'none',
-                    }}
-                    onFocus={(e) => { e.target.style.borderColor = 'var(--gold)' }}
-                    onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
-                  />
-                </div>
-              </div>
+                  {codeError && (
+                    <div style={{ padding: '10px 14px', background: 'rgba(196,74,74,0.1)', border: '1px solid rgba(196,74,74,0.25)', borderRadius: '3px', marginBottom: '16px', fontSize: '12px', color: '#c44a4a' }}>
+                      {codeError}
+                    </div>
+                  )}
 
-              {/* Summary */}
-              <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', padding: '16px', marginBottom: '8px' }}>
-                <div style={{ fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>Özet</div>
-                {[
-                  { label: 'Hizmet', value: selectedService?.name },
-                  { label: 'Personel', value: selectedStaff?.name ?? 'Fark Etmez' },
-                  { label: 'Tarih', value: selectedDate ? `${selectedDate.getDate()} ${MONTHS_FULL[selectedDate.getMonth()]}` : '' },
-                  { label: 'Saat', value: selectedTime },
-                ].map((row) => (
-                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{row.label}</span>
-                    <span style={{ fontSize: '12px', color: 'var(--white)', fontWeight: '500' }}>{row.value}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>Ad Soyad</label>
+                      <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Adınız Soyadınız"
+                        style={{ width: '100%', padding: '11px 14px', background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--white)', fontSize: '14px', outline: 'none' }}
+                        onFocus={(e) => { e.target.style.borderColor = 'var(--gold)' }} onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        E-posta <span style={{ color: 'var(--muted)', fontWeight: '400', textTransform: 'none', letterSpacing: 0 }}>(isteğe bağlı)</span>
+                      </label>
+                      <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="ornek@email.com"
+                        style={{ width: '100%', padding: '11px 14px', background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--white)', fontSize: '14px', outline: 'none' }}
+                        onFocus={(e) => { e.target.style.borderColor = 'var(--gold)' }} onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>Telefon</label>
+                      <input type="tel" value={customerPhone} onChange={(e) => { setCustomerPhone(e.target.value); setCodeSent(false) }} placeholder="0532 000 00 00"
+                        style={{ width: '100%', padding: '11px 14px', background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--white)', fontSize: '14px', outline: 'none' }}
+                        onFocus={(e) => { e.target.style.borderColor = 'var(--gold)' }} onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
+                      />
+                    </div>
                   </div>
-                ))}
-                <div style={{ borderTop: '1px solid var(--line)', marginTop: '10px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Toplam</span>
-                  <span style={{ fontSize: '16px', fontWeight: '700', color: 'var(--gold)' }}>
-                    ₺{Number(selectedService?.price ?? 0).toLocaleString('tr-TR')}
-                  </span>
-                </div>
-              </div>
+
+                  {/* Summary */}
+                  <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', padding: '16px' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>Özet</div>
+                    {[
+                      { label: 'Hizmet', value: selectedService?.name },
+                      { label: 'Personel', value: selectedStaff?.name ?? 'Fark Etmez' },
+                      { label: 'Tarih', value: selectedDate ? `${selectedDate.getDate()} ${MONTHS_FULL[selectedDate.getMonth()]}` : '' },
+                      { label: 'Saat', value: selectedTime },
+                    ].map((row) => (
+                      <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{row.label}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--white)', fontWeight: '500' }}>{row.value}</span>
+                      </div>
+                    ))}
+                    <div style={{ borderTop: '1px solid var(--line)', marginTop: '10px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Toplam</span>
+                      <span style={{ fontSize: '16px', fontWeight: '700', color: 'var(--gold)' }}>₺{Number(selectedService?.price ?? 0).toLocaleString('tr-TR')}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Phase 2: Enter verification code */
+                <>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--white)', letterSpacing: '0.04em', marginBottom: '14px' }}>Telefon Doğrulama</div>
+
+                  <div style={{ padding: '16px', background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', marginBottom: '20px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '6px' }}>Doğrulama kodu gönderildi</div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--white)' }}>{customerPhone}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>Kod 10 dakika geçerlidir.</div>
+                  </div>
+
+                  {bookingError && (
+                    <div style={{ padding: '10px 14px', background: 'rgba(196,74,74,0.1)', border: '1px solid rgba(196,74,74,0.25)', borderRadius: '3px', marginBottom: '16px', fontSize: '12px', color: '#c44a4a' }}>
+                      {bookingError}
+                    </div>
+                  )}
+
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>6 Haneli Kod</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000"
+                      style={{
+                        width: '100%', padding: '14px', background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px',
+                        color: 'var(--white)', fontSize: '22px', outline: 'none', textAlign: 'center', letterSpacing: '0.3em', fontWeight: '700',
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = 'var(--gold)' }}
+                      onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
+                      autoFocus
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => { setCodeSent(false); setBookingError(null) }}
+                    style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginBottom: '8px' }}
+                  >
+                    Farklı numara gir veya kodu tekrar gönder
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -823,40 +869,56 @@ export default function BookingWidget({ business, services, staff, workingHours,
                 }}
                 disabled={(step === 1 && !selectedService) || (step === 3 && (!selectedDate || !selectedTime))}
                 style={{
-                  flex: 1,
-                  padding: '12px 18px',
+                  flex: 1, padding: '12px 18px',
                   background: ((step === 1 && !selectedService) || (step === 3 && (!selectedDate || !selectedTime))) ? 'var(--dim)' : 'var(--gold)',
-                  border: 'none',
-                  borderRadius: '3px',
+                  border: 'none', borderRadius: '3px',
                   color: ((step === 1 && !selectedService) || (step === 3 && (!selectedDate || !selectedTime))) ? 'var(--muted)' : 'var(--bg)',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  letterSpacing: '0.04em',
+                  fontSize: '13px', fontWeight: '600', letterSpacing: '0.04em',
                   cursor: ((step === 1 && !selectedService) || (step === 3 && (!selectedDate || !selectedTime))) ? 'not-allowed' : 'pointer',
                   transition: 'all 0.15s',
                 }}
               >
                 {step === 2 ? 'Tarih Seç →' : step === 3 ? 'Bilgileri Gir →' : 'Devam Et →'}
               </button>
+            ) : !codeSent ? (
+              /* Step 4 phase 1: Send code */
+              <button
+                onClick={handleSendCode}
+                disabled={sendingCode || !customerName.trim() || !customerPhone.trim()}
+                style={{
+                  flex: 1, padding: '12px 18px',
+                  background: (sendingCode || !customerName.trim() || !customerPhone.trim()) ? 'var(--dim)' : 'var(--gold)',
+                  border: 'none', borderRadius: '3px',
+                  color: (sendingCode || !customerName.trim() || !customerPhone.trim()) ? 'var(--muted)' : 'var(--bg)',
+                  fontSize: '13px', fontWeight: '700', letterSpacing: '0.04em',
+                  cursor: (sendingCode || !customerName.trim() || !customerPhone.trim()) ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                }}
+              >
+                {sendingCode ? (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    Gönderiliyor...
+                  </>
+                ) : (
+                  'Doğrulama Kodu Gönder →'
+                )}
+              </button>
             ) : (
+              /* Step 4 phase 2: Verify + book */
               <button
                 onClick={handleSubmit}
-                disabled={submitting || !customerName.trim() || !customerPhone.trim()}
+                disabled={submitting || verificationCode.length !== 6}
                 style={{
-                  flex: 1,
-                  padding: '12px 18px',
-                  background: (submitting || !customerName.trim() || !customerPhone.trim()) ? 'var(--dim)' : 'var(--gold)',
-                  border: 'none',
-                  borderRadius: '3px',
-                  color: (submitting || !customerName.trim() || !customerPhone.trim()) ? 'var(--muted)' : 'var(--bg)',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  letterSpacing: '0.04em',
-                  cursor: (submitting || !customerName.trim() || !customerPhone.trim()) ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
+                  flex: 1, padding: '12px 18px',
+                  background: (submitting || verificationCode.length !== 6) ? 'var(--dim)' : 'var(--gold)',
+                  border: 'none', borderRadius: '3px',
+                  color: (submitting || verificationCode.length !== 6) ? 'var(--muted)' : 'var(--bg)',
+                  fontSize: '13px', fontWeight: '700', letterSpacing: '0.04em',
+                  cursor: (submitting || verificationCode.length !== 6) ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                 }}
               >
                 {submitting ? (
@@ -867,7 +929,7 @@ export default function BookingWidget({ business, services, staff, workingHours,
                     Kaydediliyor...
                   </>
                 ) : (
-                  'Randevu Al'
+                  'Randevuyu Onayla ✓'
                 )}
               </button>
             )}

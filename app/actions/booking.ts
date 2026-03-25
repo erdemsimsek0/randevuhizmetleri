@@ -12,6 +12,7 @@ export async function createAppointment(data: {
   date: string
   time: string
   notes?: string | null
+  status?: 'bekliyor' | 'onaylandi'
 }) {
   const admin = createAdminClient()
 
@@ -40,7 +41,7 @@ export async function createAppointment(data: {
       customer_email: data.customer_email ?? null,
       date: data.date,
       time: data.time,
-      status: 'bekliyor',
+      status: data.status ?? 'bekliyor',
       notes: data.notes ?? null,
     })
     .select()
