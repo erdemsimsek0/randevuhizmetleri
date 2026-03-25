@@ -73,6 +73,7 @@ export default function BookingWidget({ business, services, staff, workingHours,
   const [confirmed, setConfirmed] = useState(false)
   const [bookingError, setBookingError] = useState<string | null>(null)
   const [confirmationId, setConfirmationId] = useState<string | null>(null)
+  const [productsOpen, setProductsOpen] = useState(false)
 
   const supabase = createClient()
   const next7Days = getNext7Days()
@@ -417,31 +418,52 @@ export default function BookingWidget({ business, services, staff, workingHours,
               {/* Products Section */}
               {products.length > 0 && (
                 <div style={{ marginBottom: '8px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--white)', letterSpacing: '0.04em', marginBottom: '10px' }}>
-                    Ürünlerimiz
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {products.map((p) => (
-                      <div
-                        key={p.id}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px',
-                          background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px',
-                        }}
+                  <div
+                    onClick={() => setProductsOpen((v) => !v)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '12px 14px', background: 'var(--bg2)', border: '1px solid var(--line)',
+                      borderRadius: productsOpen ? '3px 3px 0 0' : '3px',
+                      cursor: 'pointer', transition: 'border-color 0.15s',
+                    }}
+                  >
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--white)', letterSpacing: '0.04em' }}>
+                      Ürünlerimiz
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--muted)' }}>{products.length} ürün</span>
+                      <svg
+                        width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                        style={{ transition: 'transform 0.2s', transform: productsOpen ? 'rotate(180deg)' : 'none' }}
                       >
-                        {p.image_url && (
-                          <img src={p.image_url} alt={p.name} style={{ width: '40px', height: '40px', borderRadius: '3px', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--line2)' }} />
-                        )}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)', marginBottom: '2px' }}>{p.name}</div>
-                          {p.description && (
-                            <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{p.description}</div>
-                          )}
-                        </div>
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--gold)', flexShrink: 0 }}>₺{Number(p.price).toLocaleString('tr-TR')}</span>
-                      </div>
-                    ))}
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </div>
                   </div>
+                  {productsOpen && (
+                    <div style={{ border: '1px solid var(--line)', borderTop: 'none', borderRadius: '0 0 3px 3px', overflow: 'hidden' }}>
+                      {products.map((p, i) => (
+                        <div
+                          key={p.id}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px',
+                            background: 'var(--bg2)', borderTop: i > 0 ? '1px solid var(--line)' : 'none',
+                          }}
+                        >
+                          {p.image_url && (
+                            <img src={p.image_url} alt={p.name} style={{ width: '40px', height: '40px', borderRadius: '3px', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--line2)' }} />
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)', marginBottom: '2px' }}>{p.name}</div>
+                            {p.description && (
+                              <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{p.description}</div>
+                            )}
+                          </div>
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--gold)', flexShrink: 0 }}>₺{Number(p.price).toLocaleString('tr-TR')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
