@@ -6,11 +6,21 @@ import type { Business, Service, Staff, WorkingHours } from '@/lib/types'
 import { sendNewAppointmentNotification } from '@/app/actions/notifications'
 import { createAppointment } from '@/app/actions/booking'
 
+interface Product {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  image_url: string | null
+  is_active: boolean
+}
+
 interface Props {
   business: Business
   services: Service[]
   staff: Staff[]
   workingHours: WorkingHours[]
+  products?: Product[]
 }
 
 const DAYS_TR = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']
@@ -48,7 +58,7 @@ function getNext7Days(): Date[] {
   return days
 }
 
-export default function BookingWidget({ business, services, staff, workingHours }: Props) {
+export default function BookingWidget({ business, services, staff, workingHours, products = [] }: Props) {
   const [step, setStep] = useState(1)
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null)
@@ -63,6 +73,7 @@ export default function BookingWidget({ business, services, staff, workingHours 
   const [confirmed, setConfirmed] = useState(false)
   const [bookingError, setBookingError] = useState<string | null>(null)
   const [confirmationId, setConfirmationId] = useState<string | null>(null)
+  const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
 
   const supabase = createClient()
   const next7Days = getNext7Days()
@@ -231,16 +242,24 @@ export default function BookingWidget({ business, services, staff, workingHours 
         {/* Nav */}
         <nav style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--line)', background: 'var(--bg2)', position: 'sticky', top: 0, zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '32px', height: '32px',
-                background: 'var(--gold3)', border: '1px solid var(--gold)',
-                borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '13px', fontWeight: '700', color: 'var(--gold)', fontFamily: 'DM Serif Display, serif',
-              }}
-            >
-              {business.name.charAt(0).toUpperCase()}
-            </div>
+            {business.logo_url ? (
+              <img
+                src={business.logo_url}
+                alt={business.name}
+                style={{ width: '32px', height: '32px', borderRadius: '3px', objectFit: 'cover', border: '1px solid var(--line2)' }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: '32px', height: '32px',
+                  background: 'var(--gold3)', border: '1px solid var(--gold)',
+                  borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '13px', fontWeight: '700', color: 'var(--gold)', fontFamily: 'DM Serif Display, serif',
+                }}
+              >
+                {business.name.charAt(0).toUpperCase()}
+              </div>
+            )}
             <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--white)' }}>{business.name}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'rgba(74,196,120,0.1)', border: '1px solid rgba(74,196,120,0.25)', borderRadius: '20px' }}>
@@ -294,12 +313,39 @@ export default function BookingWidget({ business, services, staff, workingHours 
           {/* Hero (shown on step 1) */}
           {step === 1 && (
             <div style={{ marginBottom: '28px', animation: 'fadeUp 0.4s ease both' }}>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>
-                Online Randevu
+
+              {/* Logo + Business Name */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                {business.logo_url ? (
+                  <div style={{
+                    width: '72px', height: '72px', flexShrink: 0,
+                    borderRadius: '4px', overflow: 'hidden',
+                    border: '1px solid var(--line2)',
+                    boxShadow: '0 0 0 1px rgba(196,154,74,0.15), 0 8px 32px rgba(0,0,0,0.5)',
+                  }}>
+                    <img src={business.logo_url} alt={business.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ) : (
+                  <div style={{
+                    width: '72px', height: '72px', flexShrink: 0,
+                    background: 'var(--gold3)', border: '1px solid rgba(196,154,74,0.4)',
+                    borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 0 0 1px rgba(196,154,74,0.1), 0 8px 32px rgba(0,0,0,0.5)',
+                  }}>
+                    <span style={{ fontFamily: 'DM Serif Display, serif', fontSize: '28px', color: 'var(--gold)', lineHeight: 1 }}>
+                      {business.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Online Randevu
+                  </div>
+                  <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: '26px', color: 'var(--white)', letterSpacing: '-0.02em', lineHeight: '1.1', margin: 0 }}>
+                    {business.name}
+                  </h1>
+                </div>
               </div>
-              <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: '30px', color: 'var(--white)', letterSpacing: '-0.02em', lineHeight: '1.1', marginBottom: '16px' }}>
-                {business.name}
-              </h1>
 
               {/* Info Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
@@ -329,7 +375,7 @@ export default function BookingWidget({ business, services, staff, workingHours 
                 )}
                 {business.phone && (
                   <a
-                    href={`https://wa.me/${business.phone?.replace(/\D/g, '')}`}
+                    href={`https://wa.me/${business.phone.replace(/\D/g, '').replace(/^0/, '90')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
@@ -343,12 +389,87 @@ export default function BookingWidget({ business, services, staff, workingHours 
                     <span style={{ fontSize: '11px', color: '#25D366' }}>WhatsApp</span>
                   </a>
                 )}
+                {business.instagram_url && (
+                  <a
+                    href={business.instagram_url.startsWith('http') ? business.instagram_url : `https://instagram.com/${business.instagram_url.replace('@', '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px',
+                      background: 'rgba(225,48,108,0.08)', border: '1px solid rgba(225,48,108,0.2)', borderRadius: '3px', textDecoration: 'none',
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#E1306C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                    </svg>
+                    <span style={{ fontSize: '11px', color: '#E1306C' }}>Instagram</span>
+                  </a>
+                )}
               </div>
 
               {business.about && (
-                <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: '1.6', marginBottom: '8px' }}>
+                <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: '1.6', marginBottom: '16px' }}>
                   {business.about}
                 </p>
+              )}
+
+              {/* Products Section */}
+              {products.length > 0 && (
+                <div style={{ marginBottom: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--white)', letterSpacing: '0.04em', marginBottom: '10px' }}>
+                    Ürünlerimiz
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {products.map((p) => (
+                      <div key={p.id}>
+                        <div
+                          onClick={() => setExpandedProduct(expandedProduct === p.id ? null : p.id)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px',
+                            background: 'var(--bg2)', border: `1px solid ${expandedProduct === p.id ? 'rgba(196,154,74,0.3)' : 'var(--line)'}`,
+                            borderRadius: expandedProduct === p.id ? '3px 3px 0 0' : '3px',
+                            cursor: 'pointer', transition: 'border-color 0.15s',
+                          }}
+                        >
+                          {p.image_url && (
+                            <img src={p.image_url} alt={p.name} style={{ width: '40px', height: '40px', borderRadius: '3px', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--line2)' }} />
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)', marginBottom: '2px' }}>{p.name}</div>
+                            {p.description && (
+                              <div style={{ fontSize: '11px', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.description}</div>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--gold)' }}>₺{Number(p.price).toLocaleString('tr-TR')}</span>
+                            <svg
+                              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                              style={{ transition: 'transform 0.2s', transform: expandedProduct === p.id ? 'rotate(180deg)' : 'none' }}
+                            >
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </div>
+                        </div>
+                        {expandedProduct === p.id && (
+                          <div style={{
+                            padding: '14px 14px 16px',
+                            background: 'var(--bg3)', border: '1px solid rgba(196,154,74,0.3)', borderTop: 'none',
+                            borderRadius: '0 0 3px 3px',
+                          }}>
+                            {p.image_url && (
+                              <img src={p.image_url} alt={p.name} style={{ width: '100%', maxHeight: '160px', objectFit: 'cover', borderRadius: '3px', marginBottom: '12px', border: '1px solid var(--line2)' }} />
+                            )}
+                            {p.description && (
+                              <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: '1.6', margin: 0 }}>{p.description}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           )}

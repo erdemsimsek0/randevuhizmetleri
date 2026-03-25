@@ -171,10 +171,69 @@ export default function HizmetlerPage() {
         <div style={{ textAlign: 'center', padding: '60px', color: 'var(--muted)', fontSize: '13px' }}>
           Henüz hizmet yok. Yukarıdan ekleyebilirsiniz.
         </div>
+      ) : isMobile ? (
+        /* Mobile: card layout */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {services.map((s) => (
+            <div
+              key={s.id}
+              style={{
+                background: 'var(--bg2)',
+                border: '1px solid var(--line)',
+                borderRadius: '3px',
+                padding: '14px 16px',
+                opacity: s.is_active ? 1 : 0.6,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--white)', marginBottom: '4px' }}>{s.name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{s.duration} dk</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--gold)' }}>
+                    ₺{Number(s.price).toLocaleString('tr-TR')}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '10px', padding: '2px 7px', borderRadius: '2px',
+                      background: s.is_active ? 'rgba(74,196,120,0.1)' : 'rgba(90,88,80,0.1)',
+                      color: s.is_active ? '#4ac478' : 'var(--muted)',
+                      border: `1px solid ${s.is_active ? 'rgba(74,196,120,0.25)' : 'var(--line)'}`,
+                      fontWeight: '600', letterSpacing: '0.06em', textTransform: 'uppercase' as const,
+                    }}
+                  >
+                    {s.is_active ? 'Aktif' : 'Pasif'}
+                  </span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => openEdit(s)}
+                  style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--muted)', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  Düzenle
+                </button>
+                <button
+                  onClick={() => handleToggleActive(s)}
+                  style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--muted)', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  {s.is_active ? 'Pasif Yap' : 'Aktif Yap'}
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(s.id)}
+                  style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid rgba(196,74,74,0.3)', borderRadius: '3px', color: '#c44a4a', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  Sil
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
+        /* Desktop: table layout */
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? '480px' : 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--bg)' }}>
                 {['Hizmet', 'Süre', 'Fiyat', 'Durum', 'İşlemler'].map((h) => (
@@ -229,43 +288,19 @@ export default function HizmetlerPage() {
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <button
                         onClick={() => openEdit(s)}
-                        style={{
-                          padding: '5px 10px',
-                          background: 'transparent',
-                          border: '1px solid var(--line)',
-                          borderRadius: '3px',
-                          color: 'var(--muted)',
-                          fontSize: '11px',
-                          cursor: 'pointer',
-                        }}
+                        style={{ padding: '5px 10px', background: 'transparent', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--muted)', fontSize: '11px', cursor: 'pointer' }}
                       >
                         Düzenle
                       </button>
                       <button
                         onClick={() => handleToggleActive(s)}
-                        style={{
-                          padding: '5px 10px',
-                          background: 'transparent',
-                          border: '1px solid var(--line)',
-                          borderRadius: '3px',
-                          color: 'var(--muted)',
-                          fontSize: '11px',
-                          cursor: 'pointer',
-                        }}
+                        style={{ padding: '5px 10px', background: 'transparent', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--muted)', fontSize: '11px', cursor: 'pointer' }}
                       >
                         {s.is_active ? 'Pasif Yap' : 'Aktif Yap'}
                       </button>
                       <button
                         onClick={() => setDeleteConfirm(s.id)}
-                        style={{
-                          padding: '5px 10px',
-                          background: 'transparent',
-                          border: '1px solid rgba(196,74,74,0.3)',
-                          borderRadius: '3px',
-                          color: '#c44a4a',
-                          fontSize: '11px',
-                          cursor: 'pointer',
-                        }}
+                        style={{ padding: '5px 10px', background: 'transparent', border: '1px solid rgba(196,74,74,0.3)', borderRadius: '3px', color: '#c44a4a', fontSize: '11px', cursor: 'pointer' }}
                       >
                         Sil
                       </button>
@@ -275,7 +310,6 @@ export default function HizmetlerPage() {
               ))}
             </tbody>
           </table>
-          </div>
         </div>
       )}
 

@@ -15,7 +15,7 @@ export default function AyarlarPage() {
   const [savingHours, setSavingHours] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', phone: '', address: '', about: '', business_type: 'diger' })
+  const [form, setForm] = useState({ name: '', phone: '', address: '', about: '', business_type: 'diger', instagram_url: '' })
 
   // Logo upload state
   const [logoUploading, setLogoUploading] = useState(false)
@@ -53,6 +53,7 @@ export default function AyarlarPage() {
         address: biz.address ?? '',
         about: biz.about ?? '',
         business_type: biz.business_type ?? 'diger',
+        instagram_url: (biz as Business & { instagram_url?: string | null }).instagram_url ?? '',
       })
     }
 
@@ -89,6 +90,7 @@ export default function AyarlarPage() {
         address: form.address || null,
         about: form.about || null,
         business_type: form.business_type,
+        instagram_url: form.instagram_url || null,
       })
       .eq('id', business.id)
 
@@ -405,6 +407,18 @@ export default function AyarlarPage() {
               placeholder="İşletmeniz hakkında kısa bilgi..."
               rows={3}
               style={{ ...inputStyle, resize: 'vertical', fontFamily: 'DM Sans, sans-serif' }}
+              onFocus={(e) => { e.target.style.borderColor = '#454540' }}
+              onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Instagram</label>
+            <input
+              type="text"
+              value={form.instagram_url}
+              onChange={(e) => setForm((p) => ({ ...p, instagram_url: e.target.value }))}
+              placeholder="@kullaniciadi veya https://instagram.com/..."
+              style={inputStyle}
               onFocus={(e) => { e.target.style.borderColor = '#454540' }}
               onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
             />

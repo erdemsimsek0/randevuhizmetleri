@@ -10,6 +10,7 @@ export type Business = {
   plan: 'temel' | 'pro' | 'kurumsal'
   business_type: string
   status: 'aktif' | 'pasif' | 'askida'
+  instagram_url: string | null
   created_at: string
 }
 

@@ -46,6 +46,7 @@ export default async function PublicBookingPage({ params }: PageProps) {
     { data: services },
     { data: staffList },
     { data: workingHours },
+    { data: products },
     reviews,
   ] = await Promise.all([
     supabase
@@ -65,6 +66,12 @@ export default async function PublicBookingPage({ params }: PageProps) {
       .select('*')
       .eq('business_id', business.id)
       .order('day'),
+    supabase
+      .from('products')
+      .select('*')
+      .eq('business_id', business.id)
+      .eq('is_active', true)
+      .order('created_at'),
     getBusinessReviews(business.id),
   ])
 
@@ -80,6 +87,7 @@ export default async function PublicBookingPage({ params }: PageProps) {
         services={(services as Service[]) ?? []}
         staff={(staffList as Staff[]) ?? []}
         workingHours={(workingHours as WorkingHours[]) ?? []}
+        products={(products as { id: string; name: string; description: string | null; price: number; image_url: string | null; is_active: boolean }[]) ?? []}
       />
 
       {/* Reviews Section */}
