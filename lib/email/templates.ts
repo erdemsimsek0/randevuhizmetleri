@@ -119,6 +119,7 @@ export function appointmentConfirmedEmail(data: {
   price: string
   address: string
   bookingUrl: string
+  cancellationUrl?: string
 }): string {
   const content = `
   <div class="body">
@@ -160,6 +161,12 @@ export function appointmentConfirmedEmail(data: {
 
     <p style="font-size:13px;">Randevu detaylarınızı görüntülemek için aşağıdaki butonu kullanabilirsiniz.</p>
     <a href="${data.bookingUrl}" class="btn">Randevu Detayı</a>
+
+    ${data.cancellationUrl ? `
+    <div style="margin-top:24px; padding-top:16px; border-top:1px solid #242422; text-align:center;">
+      <p style="font-size:11px; color:#5a5850; margin:0 0 8px;">Randevunuza gelemeyecek misiniz?</p>
+      <a href="${data.cancellationUrl}" style="font-size:11px; color:#5a5850; text-decoration:underline;">Randevuyu İptal Et</a>
+    </div>` : ''}
   </div>`
   return emailWrapper(content)
 }

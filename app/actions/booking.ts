@@ -8,8 +8,10 @@ export async function createAppointment(data: {
   service_id: string
   customer_name: string
   customer_phone: string
+  customer_email?: string | null
   date: string
   time: string
+  notes?: string | null
 }) {
   const admin = createAdminClient()
 
@@ -21,10 +23,11 @@ export async function createAppointment(data: {
       service_id: data.service_id,
       customer_name: data.customer_name,
       customer_phone: data.customer_phone,
+      customer_email: data.customer_email ?? null,
       date: data.date,
       time: data.time,
       status: 'bekliyor',
-      notes: null,
+      notes: data.notes ?? null,
     })
     .select()
     .single()

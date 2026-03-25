@@ -35,6 +35,7 @@ type AppointmentRow = {
   time: string
   customer_name: string
   customer_phone: string
+  customer_email: string | null
   status: string
   service: { name: string; price: number } | null
   staff: { name: string } | null
@@ -52,6 +53,7 @@ async function fetchAppointment(appointmentId: string): Promise<AppointmentRow |
       time,
       customer_name,
       customer_phone,
+      customer_email,
       status,
       service:services(name, price),
       staff:staff(name),
@@ -120,6 +122,34 @@ export async function notifyNewAppointment(appointmentId: string): Promise<void>
 
     if (error) {
       console.error('[email] notifyNewAppointment send error:', error)
+    }
+
+    // Send confirmation email to customer if they provided an email
+    if (apt.customer_email) {
+      const cancellationUrl = `${SITE_URL}/randevu-iptal?id=${apt.id}`
+      const customerHtml = appointmentConfirmedEmail({
+        customerName: apt.customer_name,
+        businessName,
+        serviceName: apt.service?.name ?? '—',
+        staffName: apt.staff?.name ?? 'Belirtilmedi',
+        date: formatDateTR(apt.date),
+        time: String(apt.time).slice(0, 5),
+        price: apt.service?.price != null ? formatPrice(apt.service.price) : '—',
+        address: apt.business?.address ?? '',
+        bookingUrl: `${SITE_URL}/${slug}`,
+        cancellationUrl,
+      })
+
+      const { error: customerError } = await resend.emails.send({
+        from: FROM,
+        to: apt.customer_email,
+        subject: `Randevunuz Alındı — ${businessName}`,
+        html: customerHtml,
+      })
+
+      if (customerError) {
+        console.error('[email] notifyNewAppointment customer send error:', customerError)
+      }
     }
   } catch (err) {
     console.error('[email] notifyNewAppointment unexpected error:', err)

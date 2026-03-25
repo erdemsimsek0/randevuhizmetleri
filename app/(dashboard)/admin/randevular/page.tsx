@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Appointment } from '@/lib/types'
 import { sendStatusChangeNotification } from '@/app/actions/notifications'
+import { createAppointment } from '@/app/actions/booking'
 
 type AppointmentWithJoins = Appointment & {
   service?: { name: string } | null
@@ -55,6 +56,24 @@ export default function RandevularPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [updating, setUpdating] = useState<string | null>(null)
+  const [businessId, setBusinessId] = useState<string | null>(null)
+
+  // Add modal state
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [services, setServices] = useState<{id: string, name: string, duration: number, price: number}[]>([])
+  const [staffList, setStaffList] = useState<{id: string, name: string}[]>([])
+  const [addForm, setAddForm] = useState({
+    customer_name: '',
+    customer_phone: '',
+    customer_email: '',
+    service_id: '',
+    staff_id: '',
+    date: '',
+    time: '',
+    notes: '',
+  })
+  const [addError, setAddError] = useState<string | null>(null)
+  const [addSaving, setAddSaving] = useState(false)
 
   const supabase = createClient()
 
@@ -83,7 +102,24 @@ export default function RandevularPage() {
         .single()
 
       if (profile?.business_id) {
+        setBusinessId(profile.business_id)
         await fetchAppointments(profile.business_id)
+
+        // Fetch services for the add modal
+        const { data: svcData } = await supabase
+          .from('services')
+          .select('id, name, duration, price')
+          .eq('business_id', profile.business_id)
+          .order('name')
+        setServices((svcData as {id: string, name: string, duration: number, price: number}[]) ?? [])
+
+        // Fetch staff for the add modal
+        const { data: staffData } = await supabase
+          .from('staff')
+          .select('id, name')
+          .eq('business_id', profile.business_id)
+          .order('name')
+        setStaffList((staffData as {id: string, name: string}[]) ?? [])
       } else {
         setLoading(false)
       }
@@ -125,6 +161,47 @@ export default function RandevularPage() {
     }
   }
 
+  async function handleAddAppointment() {
+    if (!businessId) return
+    if (!addForm.customer_name.trim() || !addForm.customer_phone.trim()) {
+      setAddError('Müşteri adı ve telefon zorunludur.')
+      return
+    }
+    if (!addForm.service_id) {
+      setAddError('Lütfen bir hizmet seçin.')
+      return
+    }
+    if (!addForm.date || !addForm.time) {
+      setAddError('Tarih ve saat zorunludur.')
+      return
+    }
+    setAddSaving(true)
+    setAddError(null)
+
+    const result = await createAppointment({
+      business_id: businessId,
+      staff_id: addForm.staff_id || null,
+      service_id: addForm.service_id,
+      customer_name: addForm.customer_name.trim(),
+      customer_phone: addForm.customer_phone.trim(),
+      customer_email: addForm.customer_email.trim() || null,
+      date: addForm.date,
+      time: addForm.time,
+      notes: addForm.notes.trim() || null,
+    })
+
+    if (result.error) {
+      setAddError('Randevu eklenemedi: ' + result.error)
+      setAddSaving(false)
+      return
+    }
+
+    setAddSaving(false)
+    setShowAddModal(false)
+    setAddForm({ customer_name: '', customer_phone: '', customer_email: '', service_id: '', staff_id: '', date: '', time: '', notes: '' })
+    await fetchAppointments(businessId)
+  }
+
   const inputStyle: React.CSSProperties = {
     padding: '8px 12px',
     background: 'var(--bg)',
@@ -138,13 +215,33 @@ export default function RandevularPage() {
   return (
     <div style={{ padding: '32px 36px', maxWidth: '1100px' }}>
       {/* Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: '26px', color: 'var(--white)', letterSpacing: '-0.02em', marginBottom: '6px' }}>
-          Randevular
-        </h1>
-        <p style={{ fontSize: '13px', color: 'var(--muted)' }}>
-          {filtered.length} randevu
-        </p>
+      <div style={{ marginBottom: '28px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+        <div>
+          <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: '26px', color: 'var(--white)', letterSpacing: '-0.02em', marginBottom: '6px' }}>
+            Randevular
+          </h1>
+          <p style={{ fontSize: '13px', color: 'var(--muted)' }}>
+            {filtered.length} randevu
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          style={{
+            padding: '9px 16px',
+            background: 'var(--gold)',
+            border: 'none',
+            borderRadius: '3px',
+            color: 'var(--bg)',
+            fontSize: '12px',
+            fontWeight: '700',
+            letterSpacing: '0.04em',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
+        >
+          + Randevu Ekle
+        </button>
       </div>
 
       {/* Filters */}
@@ -264,6 +361,207 @@ export default function RandevularPage() {
           </table>
         )}
       </div>
+      {/* Add Appointment Modal */}
+      {showAddModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 50,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAddModal(false) }}
+        >
+          <div style={{
+            background: 'var(--bg2)',
+            border: '1px solid var(--line2)',
+            borderRadius: '4px',
+            width: '100%',
+            maxWidth: '480px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+          }}>
+            {/* Modal Header */}
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontFamily: 'DM Serif Display, serif', fontSize: '20px', color: 'var(--white)', margin: 0 }}>
+                Yeni Randevu
+              </h2>
+              <button
+                onClick={() => setShowAddModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '18px', padding: '0 4px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px' }}>
+              {addError && (
+                <div style={{ padding: '10px 14px', background: 'rgba(196,74,74,0.1)', border: '1px solid rgba(196,74,74,0.25)', borderRadius: '3px', marginBottom: '16px', fontSize: '12px', color: '#c44a4a' }}>
+                  {addError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Customer Name */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Müşteri Adı *
+                  </label>
+                  <input
+                    type="text"
+                    value={addForm.customer_name}
+                    onChange={(e) => setAddForm((p) => ({ ...p, customer_name: e.target.value }))}
+                    placeholder="Ad Soyad"
+                    style={{ ...inputStyle, width: '100%', fontSize: '13px' }}
+                  />
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Telefon *
+                  </label>
+                  <input
+                    type="text"
+                    value={addForm.customer_phone}
+                    onChange={(e) => setAddForm((p) => ({ ...p, customer_phone: e.target.value }))}
+                    placeholder="0532 000 00 00"
+                    style={{ ...inputStyle, width: '100%', fontSize: '13px' }}
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    E-posta <span style={{ fontWeight: '400', textTransform: 'none' }}>(isteğe bağlı)</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={addForm.customer_email}
+                    onChange={(e) => setAddForm((p) => ({ ...p, customer_email: e.target.value }))}
+                    placeholder="ornek@email.com"
+                    style={{ ...inputStyle, width: '100%', fontSize: '13px' }}
+                  />
+                </div>
+
+                {/* Service */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Hizmet *
+                  </label>
+                  <select
+                    value={addForm.service_id}
+                    onChange={(e) => setAddForm((p) => ({ ...p, service_id: e.target.value }))}
+                    style={{ ...inputStyle, width: '100%', fontSize: '13px', cursor: 'pointer' }}
+                  >
+                    <option value="" style={{ background: '#111111' }}>Hizmet seçin...</option>
+                    {services.map((s) => (
+                      <option key={s.id} value={s.id} style={{ background: '#111111' }}>
+                        {s.name} — {s.duration} dk — ₺{Number(s.price).toLocaleString('tr-TR')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Staff */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Personel
+                  </label>
+                  <select
+                    value={addForm.staff_id}
+                    onChange={(e) => setAddForm((p) => ({ ...p, staff_id: e.target.value }))}
+                    style={{ ...inputStyle, width: '100%', fontSize: '13px', cursor: 'pointer' }}
+                  >
+                    <option value="" style={{ background: '#111111' }}>Fark Etmez</option>
+                    {staffList.map((s) => (
+                      <option key={s.id} value={s.id} style={{ background: '#111111' }}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date & Time row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                      Tarih *
+                    </label>
+                    <input
+                      type="date"
+                      value={addForm.date}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setAddForm((p) => ({ ...p, date: e.target.value }))}
+                      style={{ ...inputStyle, width: '100%', fontSize: '13px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                      Saat *
+                    </label>
+                    <input
+                      type="time"
+                      value={addForm.time}
+                      step={1800}
+                      onChange={(e) => setAddForm((p) => ({ ...p, time: e.target.value }))}
+                      style={{ ...inputStyle, width: '100%', fontSize: '13px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Notlar <span style={{ fontWeight: '400', textTransform: 'none' }}>(isteğe bağlı)</span>
+                  </label>
+                  <textarea
+                    value={addForm.notes}
+                    onChange={(e) => setAddForm((p) => ({ ...p, notes: e.target.value }))}
+                    placeholder="Özel notlar..."
+                    rows={3}
+                    style={{ ...inputStyle, width: '100%', fontSize: '13px', resize: 'vertical' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--line)', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowAddModal(false); setAddError(null) }}
+                style={{
+                  padding: '9px 18px',
+                  background: 'transparent',
+                  border: '1px solid var(--line)',
+                  borderRadius: '3px',
+                  color: 'var(--muted)',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleAddAppointment}
+                disabled={addSaving}
+                style={{
+                  padding: '9px 18px',
+                  background: addSaving ? 'var(--dim)' : 'var(--gold)',
+                  border: 'none',
+                  borderRadius: '3px',
+                  color: addSaving ? 'var(--muted)' : 'var(--bg)',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  letterSpacing: '0.04em',
+                  cursor: addSaving ? 'wait' : 'pointer',
+                }}
+              >
+                {addSaving ? 'Kaydediliyor...' : 'Randevu Ekle'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

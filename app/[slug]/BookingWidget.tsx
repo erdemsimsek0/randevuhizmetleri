@@ -57,6 +57,7 @@ export default function BookingWidget({ business, services, staff, workingHours 
   const [bookedSlots, setBookedSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [customerName, setCustomerName] = useState('')
+  const [customerEmail, setCustomerEmail] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
@@ -121,6 +122,7 @@ export default function BookingWidget({ business, services, staff, workingHours 
       service_id: selectedService.id,
       customer_name: customerName.trim(),
       customer_phone: customerPhone.trim(),
+      customer_email: customerEmail.trim() || null,
       date: formatDate(selectedDate),
       time: selectedTime,
     })
@@ -193,6 +195,7 @@ export default function BookingWidget({ business, services, staff, workingHours 
               { label: 'Saat', value: selectedTime },
               { label: 'Müşteri', value: customerName },
               { label: 'Telefon', value: customerPhone },
+              ...(customerEmail.trim() ? [{ label: 'E-posta', value: customerEmail.trim() }] : []),
             ].map((row) => (
               <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{row.label}</span>
@@ -602,6 +605,24 @@ export default function BookingWidget({ business, services, staff, workingHours 
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="Adınız Soyadınız"
+                    style={{
+                      width: '100%', padding: '11px 14px',
+                      background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px',
+                      color: 'var(--white)', fontSize: '14px', outline: 'none',
+                    }}
+                    onFocus={(e) => { e.target.style.borderColor = 'var(--gold)' }}
+                    onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    E-posta <span style={{ color: 'var(--muted)', fontWeight: '400', textTransform: 'none', letterSpacing: 0 }}>(isteğe bağlı)</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="ornek@email.com"
                     style={{
                       width: '100%', padding: '11px 14px',
                       background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px',
