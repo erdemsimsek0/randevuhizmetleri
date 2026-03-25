@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Business, Service, Staff, WorkingHours } from '@/lib/types'
 import { sendNewAppointmentNotification } from '@/app/actions/notifications'
+import { createAppointment } from '@/app/actions/booking'
 
 interface Props {
   business: Business
@@ -115,27 +116,23 @@ export default function BookingWidget({ business, services, staff, workingHours 
     setSubmitting(true)
     setBookingError(null)
 
-    const { data, error } = await supabase
-      .from('appointments')
-      .insert({
-        business_id: business.id,
-        staff_id: selectedStaff?.id ?? null,
-        service_id: selectedService.id,
-        customer_name: customerName.trim(),
-        customer_phone: customerPhone.trim(),
-        date: formatDate(selectedDate),
-        time: selectedTime,
-        status: 'bekliyor',
-        notes: null,
-      })
-      .select()
-      .single()
+    const result = await createAppointment({
+      business_id: business.id,
+      staff_id: selectedStaff?.id ?? null,
+      service_id: selectedService.id,
+      customer_name: customerName.trim(),
+      customer_phone: customerPhone.trim(),
+      date: formatDate(selectedDate),
+      time: selectedTime,
+    })
 
-    if (error) {
-      setBookingError('Hata: ' + error.message + ' | Kod: ' + error.code)
+    if (result.error || !result.data) {
+      setBookingError('Randevu alınırken bir hata oluştu. Lütfen tekrar deneyin.')
       setSubmitting(false)
       return
     }
+
+    const data = result.data
 
     setConfirmationId(data.id.slice(0, 8).toUpperCase())
     setConfirmed(true)
