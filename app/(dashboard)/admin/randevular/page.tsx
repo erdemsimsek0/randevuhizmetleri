@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Appointment } from '@/lib/types'
+import { sendStatusChangeNotification } from '@/app/actions/notifications'
 
 type AppointmentWithJoins = Appointment & {
   service?: { name: string } | null
@@ -115,6 +116,13 @@ export default function RandevularPage() {
       prev.map((a) => (a.id === id ? { ...a, status: status as Appointment['status'] } : a))
     )
     setUpdating(null)
+
+    // Send email notification for confirmed/cancelled status changes
+    if (status === 'onaylandi' || status === 'iptal') {
+      sendStatusChangeNotification(id, status).catch((err) =>
+        console.error('[randevular] notification error:', err)
+      )
+    }
   }
 
   const inputStyle: React.CSSProperties = {

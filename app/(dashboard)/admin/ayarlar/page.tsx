@@ -514,6 +514,82 @@ export default function AyarlarPage() {
         </div>
       </div>
 
+      {/* Notifications */}
+      <div style={sectionStyle}>
+        <div style={sectionHeaderStyle}>Bildirimler</div>
+        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+          <div style={{ padding: '12px 16px', background: 'var(--bg)', border: '1px solid rgba(196,154,74,0.2)', borderRadius: '3px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '1px' }}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <div>
+              <div style={{ fontSize: '12px', color: 'var(--white)', fontWeight: '500', marginBottom: '3px' }}>E-posta bildirimleri aktif</div>
+              <div style={{ fontSize: '11px', color: 'var(--muted)', lineHeight: '1.6' }}>
+                Bildirimler hesabınıza kayıtlı e-posta adresine gönderilir:{' '}
+                <span style={{ color: 'var(--gold)' }}>{business?.name ? `${business.name} hesabı` : '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          {[
+            { label: 'Yeni randevu bildirimi al', desc: 'Yeni bir randevu oluşturulduğunda e-posta alırsınız.' },
+            { label: 'Müşterilere onay emaili gönder', desc: 'Randevu onaylandığında müşteriye bildirim gönderilir.' },
+            { label: 'Müşterilere iptal emaili gönder', desc: 'Randevu iptal edildiğinde müşteriye bildirim gönderilir.' },
+          ].map((item) => (
+            <div
+              key={item.label}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: '16px',
+                padding: '14px 16px',
+                background: 'var(--bg)',
+                border: '1px solid var(--line)',
+                borderRadius: '3px',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '13px', color: 'var(--white)', fontWeight: '500', marginBottom: '3px' }}>{item.label}</div>
+                <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{item.desc}</div>
+              </div>
+              <div
+                style={{
+                  flexShrink: 0,
+                  width: '36px',
+                  height: '20px',
+                  background: 'rgba(196,154,74,0.15)',
+                  border: '1px solid rgba(196,154,74,0.35)',
+                  borderRadius: '10px',
+                  position: 'relative',
+                  cursor: 'default',
+                }}
+              >
+                <div
+                  style={{
+                    width: '14px',
+                    height: '14px',
+                    background: 'var(--gold)',
+                    borderRadius: '50%',
+                    position: 'absolute',
+                    top: '2px',
+                    right: '2px',
+                    transition: 'right 0.2s',
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+
+          <p style={{ fontSize: '11px', color: 'var(--muted)', margin: 0, lineHeight: '1.6' }}>
+            Bildirim tercihleri yakında özelleştirilebilir olacak. Şu anda tüm bildirimler aktiftir.
+          </p>
+        </div>
+      </div>
+
       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }

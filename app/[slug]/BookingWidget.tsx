@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Business, Service, Staff, WorkingHours } from '@/lib/types'
+import { sendNewAppointmentNotification } from '@/app/actions/notifications'
 
 interface Props {
   business: Business
@@ -139,6 +140,11 @@ export default function BookingWidget({ business, services, staff, workingHours 
     setConfirmationId(data.id.slice(0, 8).toUpperCase())
     setConfirmed(true)
     setSubmitting(false)
+
+    // Send email notification to business owner (fire-and-forget)
+    sendNewAppointmentNotification(data.id).catch((err) =>
+      console.error('[booking] notification error:', err)
+    )
   }
 
   const progressSteps = [
