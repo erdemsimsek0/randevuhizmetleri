@@ -3,14 +3,14 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #FAFAF8;
-  --bg2: #F4F2EE;
-  --bg3: #EDEAE4;
-  --line: #E8E4DC;
-  --line2: #D9D5CC;
-  --white: #1C1A16;
-  --muted: #8A8478;
-  --dim: #C8C4BC;
+  --bg: #080808;
+  --bg2: #111111;
+  --bg3: #161616;
+  --line: #1C1C1C;
+  --line2: #242424;
+  --white: #F5F5F5;
+  --muted: #555555;
+  --dim: #2A2A2A;
   --gold: #C49A4A;
   --gold2: #E8C06A;
   --gold3: rgba(196, 154, 74, 0.10);

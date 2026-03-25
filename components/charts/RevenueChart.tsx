@@ -41,7 +41,7 @@ const serviceData = [
   { name: 'Diğer', value: 6 },
 ]
 
-const SERVICE_COLORS = ['#c49a4a', '#e8c06a', '#8A8478', '#D9D5CC', '#E8E4DC']
+const SERVICE_COLORS = ['#c49a4a', '#e8c06a', '#555555', '#242424', '#1C1C1C']
 
 function generateWeeklyData() {
   const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
@@ -55,13 +55,13 @@ const weeklyData = generateWeeklyData()
 
 const tooltipStyle = {
   contentStyle: {
-    background: '#F4F2EE',
+    background: '#111111',
     border: '1px solid #242422',
     borderRadius: '3px',
     fontSize: '11px',
-    color: '#1C1A16',
+    color: '#F5F5F5',
   },
-  labelStyle: { color: '#8A8478', fontSize: '10px' },
+  labelStyle: { color: '#555555', fontSize: '10px' },
   itemStyle: { color: '#c49a4a' },
 }
 
@@ -104,13 +104,13 @@ export default function RevenueCharts() {
               <CartesianGrid strokeDasharray="3 3" stroke="#242422" vertical={false} />
               <XAxis
                 dataKey="day"
-                tick={{ fill: '#8A8478', fontSize: 10 }}
+                tick={{ fill: '#555555', fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
                 interval={4}
               />
               <YAxis
-                tick={{ fill: '#8A8478', fontSize: 10 }}
+                tick={{ fill: '#555555', fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v) => `₺${(v / 1000).toFixed(0)}k`}
@@ -130,7 +130,7 @@ export default function RevenueCharts() {
                 strokeWidth={1.5}
                 fill="url(#goldGradient)"
                 dot={false}
-                activeDot={{ r: 4, fill: '#c49a4a', stroke: '#FAFAF8', strokeWidth: 2 }}
+                activeDot={{ r: 4, fill: '#c49a4a', stroke: '#080808', strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -219,12 +219,12 @@ export default function RevenueCharts() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#242422" vertical={false} />
                 <XAxis
                   dataKey="gun"
-                  tick={{ fill: '#8A8478', fontSize: 10 }}
+                  tick={{ fill: '#555555', fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: '#8A8478', fontSize: 10 }}
+                  tick={{ fill: '#555555', fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
                   allowDecimals={false}

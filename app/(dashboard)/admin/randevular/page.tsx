@@ -164,7 +164,7 @@ export default function RandevularPage() {
           style={{ ...inputStyle, cursor: 'pointer' }}
         >
           {STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value} style={{ background: '#F4F2EE' }}>
+            <option key={opt.value} value={opt.value} style={{ background: '#111111' }}>
               {opt.label}
             </option>
           ))}
@@ -252,10 +252,10 @@ export default function RandevularPage() {
                         outline: 'none',
                       }}
                     >
-                      <option value="bekliyor" style={{ background: '#F4F2EE' }}>Bekliyor</option>
-                      <option value="onaylandi" style={{ background: '#F4F2EE' }}>Onaylandı</option>
-                      <option value="tamamlandi" style={{ background: '#F4F2EE' }}>Tamamlandı</option>
-                      <option value="iptal" style={{ background: '#F4F2EE' }}>İptal</option>
+                      <option value="bekliyor" style={{ background: '#111111' }}>Bekliyor</option>
+                      <option value="onaylandi" style={{ background: '#111111' }}>Onaylandı</option>
+                      <option value="tamamlandi" style={{ background: '#111111' }}>Tamamlandı</option>
+                      <option value="iptal" style={{ background: '#111111' }}>İptal</option>
                     </select>
                   </td>
                 </tr>
