@@ -8,6 +8,7 @@ export type Business = {
   address: string | null
   about: string | null
   plan: 'temel' | 'pro' | 'kurumsal'
+  business_type: string
   status: 'aktif' | 'pasif' | 'askida'
   created_at: string
 }

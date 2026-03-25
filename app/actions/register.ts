@@ -25,6 +25,7 @@ export async function registerBusiness(formData: {
   businessName: string
   phone: string
   plan: string
+  businessType: string
 }) {
   const admin = createAdminClient()
 
@@ -58,6 +59,7 @@ export async function registerBusiness(formData: {
       owner_id: userId,
       phone: formData.phone || null,
       plan: formData.plan,
+      business_type: formData.businessType,
       status: 'aktif',
     })
     .select()

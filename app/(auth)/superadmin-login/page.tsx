@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function LoginPage() {
+export default function SuperAdminLoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -27,8 +27,6 @@ export default function LoginPage() {
     if (authError) {
       if (authError.message.includes('Invalid login credentials')) {
         setError('E-posta veya şifre hatalı. Lütfen tekrar deneyin.')
-      } else if (authError.message.includes('Email not confirmed')) {
-        setError('E-posta adresiniz henüz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.')
       } else {
         setError('Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.')
       }
@@ -36,7 +34,28 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/admin')
+    // Check if the user has superadmin role
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setError('Kullanıcı bilgisi alınamadı.')
+      setLoading(false)
+      return
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'superadmin') {
+      await supabase.auth.signOut()
+      setError('Bu hesabın süper admin yetkisi yok.')
+      setLoading(false)
+      return
+    }
+
+    router.push('/superadmin')
     router.refresh()
   }
 
@@ -62,7 +81,7 @@ export default function LoginPage() {
           transform: 'translate(-50%, -50%)',
           width: '600px',
           height: '600px',
-          background: 'radial-gradient(circle, rgba(196,154,74,0.04) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(196,154,74,0.06) 0%, transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -75,29 +94,25 @@ export default function LoginPage() {
         }}
       >
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '48px',
-              height: '48px',
-              background: 'var(--gold3)',
-              border: '1px solid rgba(196,154,74,0.3)',
-              borderRadius: '4px',
-              marginBottom: '20px',
-            }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-              <line x1="8" y1="14" x2="8" y2="14" />
-              <line x1="12" y1="14" x2="12" y2="14" />
-              <line x1="16" y1="14" x2="16" y2="14" />
-            </svg>
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          {/* SUPER ADMIN badge */}
+          <div style={{ marginBottom: '16px' }}>
+            <span
+              style={{
+                display: 'inline-block',
+                padding: '4px 12px',
+                background: 'rgba(196,154,74,0.15)',
+                border: '1px solid rgba(196,154,74,0.4)',
+                borderRadius: '2px',
+                fontSize: '10px',
+                fontWeight: '700',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: 'var(--gold)',
+              }}
+            >
+              Super Admin
+            </span>
           </div>
           <div>
             <span style={{ fontFamily: 'DM Serif Display, serif', fontSize: '22px', color: 'var(--white)', letterSpacing: '-0.01em' }}>
@@ -116,16 +131,21 @@ export default function LoginPage() {
         <div
           style={{
             background: 'var(--bg2)',
-            border: '1px solid var(--line)',
+            border: '1px solid rgba(196,154,74,0.2)',
             borderRadius: '4px',
             padding: '32px',
           }}
         >
           <h1 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--white)', marginBottom: '6px', letterSpacing: '-0.01em' }}>
-            Giriş Yap
+            Süper Admin Girişi
           </h1>
-          <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '28px' }}>
-            Hesabınıza erişmek için bilgilerinizi girin.
+          <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            Bu sayfa sadece platform yöneticileri içindir
           </p>
 
           {error && (
@@ -163,7 +183,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="isletme@domain.com"
+                placeholder="admin@domain.com"
                 required
                 style={{
                   width: '100%',
@@ -176,20 +196,15 @@ export default function LoginPage() {
                   outline: 'none',
                   transition: 'border-color 0.15s ease',
                 }}
-                onFocus={(e) => { e.target.style.borderColor = '#454540' }}
+                onFocus={(e) => { e.target.style.borderColor = 'var(--gold)' }}
                 onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
               />
             </div>
 
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Şifre
-                </label>
-                <a href="#" style={{ fontSize: '11px', color: 'var(--gold)', textDecoration: 'none' }}>
-                  Şifremi Unuttum
-                </a>
-              </div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                Şifre
+              </label>
               <div style={{ position: 'relative' }}>
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -208,7 +223,7 @@ export default function LoginPage() {
                     outline: 'none',
                     transition: 'border-color 0.15s ease',
                   }}
-                  onFocus={(e) => { e.target.style.borderColor = '#454540' }}
+                  onFocus={(e) => { e.target.style.borderColor = 'var(--gold)' }}
                   onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
                 />
                 <button
@@ -249,12 +264,12 @@ export default function LoginPage() {
               style={{
                 width: '100%',
                 padding: '11px 16px',
-                background: loading ? 'var(--dim)' : 'var(--white)',
+                background: loading ? 'var(--dim)' : 'var(--gold)',
                 border: 'none',
                 borderRadius: '3px',
                 color: loading ? 'var(--muted)' : 'var(--bg)',
                 fontSize: '12px',
-                fontWeight: '600',
+                fontWeight: '700',
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
                 cursor: loading ? 'not-allowed' : 'pointer',
@@ -280,34 +295,10 @@ export default function LoginPage() {
           </form>
 
           <div style={{ textAlign: 'center', marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--line)' }}>
-            <span style={{ fontSize: '13px', color: 'var(--muted)' }}>
-              Hesabınız yok mu?{' '}
-            </span>
-            <Link href="/register" style={{ fontSize: '13px', color: 'var(--gold)', textDecoration: 'none', fontWeight: '500' }}>
-              Hesap Oluştur
+            <Link href="/login" style={{ fontSize: '12px', color: 'var(--muted)', textDecoration: 'none' }}>
+              İşletme girişi için tıklayın
             </Link>
           </div>
-        </div>
-
-        {/* Super admin link */}
-        <div style={{ textAlign: 'center', marginTop: '24px' }}>
-          <Link
-            href="/superadmin-login"
-            style={{
-              fontSize: '11px',
-              color: 'var(--muted)',
-              textDecoration: 'none',
-              letterSpacing: '0.04em',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            Süper Admin? Buradan giriş yap
-          </Link>
         </div>
       </div>
 
@@ -315,6 +306,10 @@ export default function LoginPage() {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>

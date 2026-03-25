@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { registerBusiness } from '@/app/actions/register'
+import { BUSINESS_TYPES } from '@/lib/business-types'
 
 const plans = [
   {
@@ -59,6 +60,7 @@ function slugify(text: string): string {
 export default function RegisterPage() {
   const router = useRouter()
   const [selectedPlan, setSelectedPlan] = useState('pro')
+  const [businessType, setBusinessType] = useState('berber')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
@@ -120,6 +122,7 @@ export default function RegisterPage() {
       businessName: form.businessName,
       phone: form.phone,
       plan: selectedPlan,
+      businessType,
     })
 
     if (result.error) {
@@ -282,6 +285,33 @@ export default function RegisterPage() {
                   onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
                 />
               </div>
+            </div>
+
+            {/* Business Type */}
+            <div>
+              <label style={labelStyle}>İşletme Türü</label>
+              <select
+                value={businessType}
+                onChange={(e) => setBusinessType(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: 'var(--bg)',
+                  border: '1px solid var(--line)',
+                  borderRadius: '3px',
+                  color: 'var(--white)',
+                  fontSize: '13px',
+                  outline: 'none',
+                  appearance: 'none',
+                  cursor: 'pointer',
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--gold)' }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--line)' }}
+              >
+                {BUSINESS_TYPES.map((bt) => (
+                  <option key={bt.value} value={bt.value}>{bt.label}</option>
+                ))}
+              </select>
             </div>
 
             {/* Plan Selection */}

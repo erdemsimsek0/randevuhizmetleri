@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
@@ -90,6 +91,7 @@ export default function AdminSidebar({
 }: AdminSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const [copied, setCopied] = useState(false)
 
   const isActive = (href: string) => {
     if (href === '/admin') return pathname === '/admin'
@@ -106,6 +108,14 @@ export default function AdminSidebar({
     .join('')
     .slice(0, 2)
     .toUpperCase()
+
+  function handleCopyLink() {
+    const url = `https://randevuhizmetleri.vercel.app/${displaySlug}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -239,6 +249,85 @@ export default function AdminSidebar({
           )
         })}
       </nav>
+
+      {/* Customer Link */}
+      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--line)' }}>
+        <div
+          style={{
+            padding: '10px 12px',
+            background: 'rgba(196,154,74,0.05)',
+            border: '1px solid rgba(196,154,74,0.25)',
+            borderLeft: '3px solid var(--gold)',
+            borderRadius: '3px',
+          }}
+        >
+          <div style={{ fontSize: '9px', fontWeight: '700', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>
+            Müşteri Linki
+          </div>
+          <div
+            style={{
+              fontSize: '10px',
+              color: 'var(--muted)',
+              marginBottom: '8px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            randevuhizmetleri.com/{displaySlug}
+          </div>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              onClick={handleCopyLink}
+              style={{
+                flex: 1,
+                padding: '5px 8px',
+                background: copied ? 'rgba(74,196,120,0.1)' : 'transparent',
+                border: `1px solid ${copied ? 'rgba(74,196,120,0.3)' : 'rgba(196,154,74,0.3)'}`,
+                borderRadius: '2px',
+                color: copied ? '#4ac478' : 'var(--gold)',
+                fontSize: '10px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {copied ? 'Kopyalandı!' : 'Kopyala'}
+            </button>
+            <a
+              href={`https://randevuhizmetleri.vercel.app/${displaySlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                flex: 1,
+                padding: '5px 8px',
+                background: 'transparent',
+                border: '1px solid rgba(196,154,74,0.3)',
+                borderRadius: '2px',
+                color: 'var(--gold)',
+                fontSize: '10px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                textDecoration: 'none',
+                textAlign: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                letterSpacing: '0.04em',
+              }}
+            >
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+              Aç
+            </a>
+          </div>
+        </div>
+      </div>
 
       {/* Bottom User Area */}
       <div style={{ padding: '16px', borderTop: '1px solid var(--line)' }}>

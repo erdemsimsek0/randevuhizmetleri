@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Business, WorkingHours } from '@/lib/types'
+import { BUSINESS_TYPES } from '@/lib/business-types'
 
 const DAYS = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi']
 
@@ -14,7 +15,13 @@ export default function AyarlarPage() {
   const [savingHours, setSavingHours] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', phone: '', address: '', about: '' })
+  const [form, setForm] = useState({ name: '', phone: '', address: '', about: '', business_type: 'diger' })
+
+  // Logo upload state
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoUploadSuccess, setLogoUploadSuccess] = useState(false)
+  const [logoDragOver, setLogoDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const supabase = createClient()
 
@@ -32,7 +39,13 @@ export default function AyarlarPage() {
 
     if (biz) {
       setBusiness(biz as Business)
-      setForm({ name: biz.name, phone: biz.phone ?? '', address: biz.address ?? '', about: biz.about ?? '' })
+      setForm({
+        name: biz.name,
+        phone: biz.phone ?? '',
+        address: biz.address ?? '',
+        about: biz.about ?? '',
+        business_type: biz.business_type ?? 'diger',
+      })
     }
 
     if (wh && wh.length > 0) {
@@ -62,7 +75,13 @@ export default function AyarlarPage() {
 
     const { error: err } = await supabase
       .from('businesses')
-      .update({ name: form.name, phone: form.phone || null, address: form.address || null, about: form.about || null })
+      .update({
+        name: form.name,
+        phone: form.phone || null,
+        address: form.address || null,
+        about: form.about || null,
+        business_type: form.business_type,
+      })
       .eq('id', business.id)
 
     if (err) {
@@ -101,6 +120,68 @@ export default function AyarlarPage() {
     setHours((prev) =>
       prev.map((h) => (h.day === day ? { ...h, [field]: value } : h))
     )
+  }
+
+  async function handleLogoFile(file: File) {
+    if (!business) return
+
+    if (!file.type.startsWith('image/')) {
+      setError('Lütfen bir görsel dosyası seçin.')
+      return
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Dosya boyutu en fazla 2MB olabilir.')
+      return
+    }
+
+    setLogoUploading(true)
+    setError(null)
+    setLogoUploadSuccess(false)
+
+    const ext = file.name.split('.').pop()
+    const fileName = `${Date.now()}.${ext}`
+    const path = `${business.id}/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('logos')
+      .upload(path, file, { upsert: true })
+
+    if (uploadError) {
+      setError('Logo yüklenemedi: ' + uploadError.message)
+      setLogoUploading(false)
+      return
+    }
+
+    const { data: urlData } = supabase.storage.from('logos').getPublicUrl(path)
+    const publicUrl = urlData.publicUrl
+
+    const { error: updateError } = await supabase
+      .from('businesses')
+      .update({ logo_url: publicUrl })
+      .eq('id', business.id)
+
+    if (updateError) {
+      setError('Logo URL kaydedilemedi: ' + updateError.message)
+    } else {
+      setBusiness((prev) => prev ? { ...prev, logo_url: publicUrl } : prev)
+      setLogoUploadSuccess(true)
+      setTimeout(() => setLogoUploadSuccess(false), 3000)
+    }
+
+    setLogoUploading(false)
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) handleLogoFile(file)
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setLogoDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleLogoFile(file)
   }
 
   const inputStyle: React.CSSProperties = {
@@ -180,6 +261,90 @@ export default function AyarlarPage() {
       <div style={sectionStyle}>
         <div style={sectionHeaderStyle}>İşletme Bilgileri</div>
         <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+          {/* Logo Upload */}
+          <div>
+            <label style={labelStyle}>Logo</label>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+              {business.logo_url && (
+                <div
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '3px',
+                    border: '1px solid var(--line)',
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                    background: 'var(--bg)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <img
+                    src={business.logo_url}
+                    alt="Logo"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
+                </div>
+              )}
+              <div style={{ flex: 1 }}>
+                <div
+                  onClick={() => !logoUploading && fileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setLogoDragOver(true) }}
+                  onDragLeave={() => setLogoDragOver(false)}
+                  onDrop={handleDrop}
+                  style={{
+                    padding: '20px',
+                    background: logoDragOver ? 'rgba(196,154,74,0.06)' : 'var(--bg)',
+                    border: `1px dashed ${logoDragOver ? 'var(--gold)' : logoUploading ? 'var(--line2)' : 'var(--line2)'}`,
+                    borderRadius: '3px',
+                    textAlign: 'center',
+                    cursor: logoUploading ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {logoUploading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                      </svg>
+                      <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Yükleniyor...</span>
+                    </div>
+                  ) : logoUploadSuccess ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ac478" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span style={{ fontSize: '12px', color: '#4ac478' }}>Logo yüklendi!</span>
+                    </div>
+                  ) : (
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={logoDragOver ? 'var(--gold)' : 'var(--muted)'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '6px' }}>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                      <div style={{ fontSize: '12px', color: logoDragOver ? 'var(--gold)' : 'var(--muted)' }}>
+                        Sürükle & bırak veya tıkla
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: '3px', opacity: 0.7 }}>
+                        Görsel dosyası — maks. 2MB
+                      </div>
+                    </>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileInputChange}
+                  style={{ display: 'none' }}
+                />
+              </div>
+            </div>
+          </div>
+
           <div>
             <label style={labelStyle}>İşletme Adı</label>
             <input type="text" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} style={inputStyle} onFocus={(e) => { e.target.style.borderColor = '#454540' }} onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }} />
@@ -189,6 +354,24 @@ export default function AyarlarPage() {
             <div style={{ padding: '10px 12px', background: 'var(--dim)', border: '1px solid var(--line)', borderRadius: '3px', fontSize: '12px', color: 'var(--muted)' }}>
               randevuhizmetleri.com/{business.slug} — (değiştirilemez)
             </div>
+          </div>
+          <div>
+            <label style={labelStyle}>İşletme Türü</label>
+            <select
+              value={form.business_type}
+              onChange={(e) => setForm((p) => ({ ...p, business_type: e.target.value }))}
+              style={{
+                ...inputStyle,
+                appearance: 'none',
+                cursor: 'pointer',
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--gold)' }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--line)' }}
+            >
+              {BUSINESS_TYPES.map((bt) => (
+                <option key={bt.value} value={bt.value}>{bt.label}</option>
+              ))}
+            </select>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
@@ -330,6 +513,13 @@ export default function AyarlarPage() {
           </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }

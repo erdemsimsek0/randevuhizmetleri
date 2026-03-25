@@ -3,16 +3,19 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Staff } from '@/lib/types'
+import { getPositionsForType } from '@/lib/business-types'
 
-const EMPTY_FORM = { name: '', role: 'Uzman', avatar_url: '' }
+const EMPTY_FORM = { name: '', role: '', avatar_url: '' }
 
 export default function PersonelPage() {
   const [staffList, setStaffList] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
   const [businessId, setBusinessId] = useState<string | null>(null)
+  const [businessType, setBusinessType] = useState<string>('diger')
   const [showModal, setShowModal] = useState(false)
   const [editItem, setEditItem] = useState<Staff | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [useCustomRole, setUseCustomRole] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -36,6 +39,8 @@ export default function PersonelPage() {
       const { data: profile } = await supabase.from('profiles').select('business_id').eq('id', user.id).single()
       if (profile?.business_id) {
         setBusinessId(profile.business_id)
+        const { data: biz } = await supabase.from('businesses').select('business_type').eq('id', profile.business_id).single()
+        if (biz?.business_type) setBusinessType(biz.business_type)
         await fetchStaff(profile.business_id)
       } else {
         setLoading(false)
@@ -44,15 +49,25 @@ export default function PersonelPage() {
     init()
   }, [supabase, fetchStaff])
 
+  function getDefaultRole(bType: string) {
+    const positions = getPositionsForType(bType)
+    return positions[0] ?? 'Uzman'
+  }
+
   function openAdd() {
     setEditItem(null)
-    setForm(EMPTY_FORM)
+    const defaultRole = getDefaultRole(businessType)
+    setForm({ ...EMPTY_FORM, role: defaultRole })
+    setUseCustomRole(false)
     setError(null)
     setShowModal(true)
   }
 
   function openEdit(s: Staff) {
     setEditItem(s)
+    const positions = getPositionsForType(businessType)
+    const isCustom = !positions.includes(s.role)
+    setUseCustomRole(isCustom)
     setForm({ name: s.name, role: s.role, avatar_url: s.avatar_url ?? '' })
     setError(null)
     setShowModal(true)
@@ -119,6 +134,8 @@ export default function PersonelPage() {
     textTransform: 'uppercase',
     marginBottom: '6px',
   }
+
+  const positions = getPositionsForType(businessType)
 
   return (
     <div style={{ padding: '32px 36px', maxWidth: '900px' }}>
@@ -361,16 +378,64 @@ export default function PersonelPage() {
                 />
               </div>
               <div>
-                <label style={labelStyle}>Unvan / Rol</label>
-                <input
-                  type="text"
-                  value={form.role}
-                  onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
-                  placeholder="Örn: Berber, Stilist, Uzman"
-                  style={inputStyle}
-                  onFocus={(e) => { e.target.style.borderColor = '#454540' }}
-                  onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
-                />
+                <label style={labelStyle}>Pozisyon</label>
+                {!useCustomRole ? (
+                  <select
+                    value={form.role}
+                    onChange={(e) => {
+                      if (e.target.value === '__diger__') {
+                        setUseCustomRole(true)
+                        setForm((p) => ({ ...p, role: '' }))
+                      } else {
+                        setForm((p) => ({ ...p, role: e.target.value }))
+                      }
+                    }}
+                    style={{
+                      ...inputStyle,
+                      appearance: 'none',
+                      cursor: 'pointer',
+                    }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--gold)' }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--line)' }}
+                  >
+                    {positions.map((pos) => (
+                      <option key={pos} value={pos}>{pos}</option>
+                    ))}
+                    <option value="__diger__">Diğer...</option>
+                  </select>
+                ) : (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={form.role}
+                      onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
+                      placeholder="Özel pozisyon girin"
+                      style={{ ...inputStyle, flex: 1 }}
+                      onFocus={(e) => { e.target.style.borderColor = 'var(--gold)' }}
+                      onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUseCustomRole(false)
+                        setForm((p) => ({ ...p, role: positions[0] ?? 'Uzman' }))
+                      }}
+                      style={{
+                        padding: '10px 12px',
+                        background: 'transparent',
+                        border: '1px solid var(--line)',
+                        borderRadius: '3px',
+                        color: 'var(--muted)',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Listeden Seç
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
