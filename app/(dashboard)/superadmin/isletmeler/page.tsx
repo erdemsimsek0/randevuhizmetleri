@@ -181,9 +181,9 @@ export default function IsletmelerPage() {
                         outline: 'none',
                       }}
                     >
-                      <option value="temel" style={{ background: '#1c1c1a' }}>Temel</option>
-                      <option value="pro" style={{ background: '#1c1c1a' }}>Pro</option>
-                      <option value="kurumsal" style={{ background: '#1c1c1a' }}>Kurumsal</option>
+                      <option value="temel" style={{ background: '#F4F2EE' }}>Temel</option>
+                      <option value="pro" style={{ background: '#F4F2EE' }}>Pro</option>
+                      <option value="kurumsal" style={{ background: '#F4F2EE' }}>Kurumsal</option>
                     </select>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
