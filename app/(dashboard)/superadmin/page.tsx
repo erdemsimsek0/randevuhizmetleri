@@ -1,17 +1,15 @@
-import { businesses, appointments, users } from '@/lib/mock-data'
-
-const totalAppointmentsToday = appointments.filter((a) => a.date === '2026-03-25').length
-const totalRevenue = businesses.reduce((s, b) => s + b.revenue, 0)
-const newThisMonth = businesses.filter((b) => b.createdAt.startsWith('2026')).length
-const activeBusinesses = businesses.filter((b) => b.status === 'Aktif').length
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import type { Business } from '@/lib/types'
 
 function PlanBadge({ plan }: { plan: string }) {
   const styles: Record<string, { bg: string; color: string; border: string }> = {
-    Temel: { bg: 'rgba(90,88,80,0.15)', color: 'var(--muted)', border: 'var(--line2)' },
-    Pro: { bg: 'var(--gold3)', color: 'var(--gold)', border: 'rgba(196,154,74,0.25)' },
-    Kurumsal: { bg: 'rgba(245,243,239,0.08)', color: 'var(--white)', border: 'rgba(245,243,239,0.2)' },
+    temel: { bg: 'rgba(90,88,80,0.15)', color: 'var(--muted)', border: 'var(--line2)' },
+    pro: { bg: 'var(--gold3)', color: 'var(--gold)', border: 'rgba(196,154,74,0.25)' },
+    kurumsal: { bg: 'rgba(245,243,239,0.08)', color: 'var(--white)', border: 'rgba(245,243,239,0.2)' },
   }
-  const s = styles[plan] || styles['Temel']
+  const s = styles[plan] || styles['temel']
   return (
     <span
       style={{
@@ -24,7 +22,7 @@ function PlanBadge({ plan }: { plan: string }) {
         fontWeight: '600',
         color: s.color,
         letterSpacing: '0.06em',
-        textTransform: 'uppercase',
+        textTransform: 'capitalize',
       }}
     >
       {plan}
@@ -34,11 +32,11 @@ function PlanBadge({ plan }: { plan: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, { bg: string; color: string; border: string }> = {
-    Aktif: { bg: 'rgba(74,196,120,0.1)', color: '#4ac478', border: 'rgba(74,196,120,0.25)' },
-    Pasif: { bg: 'rgba(90,88,80,0.1)', color: 'var(--muted)', border: 'var(--line)' },
-    'Askı': { bg: 'rgba(196,74,74,0.1)', color: '#c44a4a', border: 'rgba(196,74,74,0.25)' },
+    aktif: { bg: 'rgba(74,196,120,0.1)', color: '#4ac478', border: 'rgba(74,196,120,0.25)' },
+    pasif: { bg: 'rgba(90,88,80,0.1)', color: 'var(--muted)', border: 'var(--line)' },
+    askida: { bg: 'rgba(196,74,74,0.1)', color: '#c44a4a', border: 'rgba(196,74,74,0.25)' },
   }
-  const s = styles[status] || styles['Pasif']
+  const s = styles[status] || styles['pasif']
   return (
     <span
       style={{
@@ -53,7 +51,7 @@ function StatusBadge({ status }: { status: string }) {
         fontWeight: '600',
         color: s.color,
         letterSpacing: '0.06em',
-        textTransform: 'uppercase',
+        textTransform: 'capitalize',
       }}
     >
       <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: s.color, display: 'inline-block' }} />
@@ -62,7 +60,29 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-export default function SuperAdminDashboard() {
+export default async function SuperAdminDashboard() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const [
+    { data: businesses, count: totalBusinesses },
+    { data: todayAppointments },
+    { data: recentBusinesses },
+  ] = await Promise.all([
+    supabase.from('businesses').select('*', { count: 'exact' }),
+    supabase.from('appointments').select('id').eq('date', today),
+    supabase.from('businesses').select('*').order('created_at', { ascending: false }).limit(5),
+  ])
+
+  const allBusinesses = (businesses as Business[]) ?? []
+  const activeCount = allBusinesses.filter((b) => b.status === 'aktif').length
+  const todayCount = todayAppointments?.length ?? 0
+  const totalCount = totalBusinesses ?? 0
+
   return (
     <div style={{ padding: '32px 36px', maxWidth: '1200px' }}>
       {/* Header */}
@@ -74,15 +94,7 @@ export default function SuperAdminDashboard() {
           <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />
           <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Tam Erişim</span>
         </div>
-        <h1
-          style={{
-            fontFamily: 'DM Serif Display, serif',
-            fontSize: '28px',
-            color: 'var(--white)',
-            letterSpacing: '-0.02em',
-            marginBottom: '4px',
-          }}
-        >
+        <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: '28px', color: 'var(--white)', letterSpacing: '-0.02em', marginBottom: '4px' }}>
           Süper Admin Paneli
         </h1>
         <p style={{ fontSize: '13px', color: 'var(--muted)' }}>
@@ -90,20 +102,13 @@ export default function SuperAdminDashboard() {
         </p>
       </div>
 
-      {/* Big Stats */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '16px',
-          marginBottom: '32px',
-        }}
-      >
+      {/* Stat Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
         {[
           {
             label: 'Toplam İşletme',
-            value: businesses.length,
-            sub: `${activeBusinesses} aktif`,
+            value: totalCount,
+            sub: `${activeCount} aktif`,
             color: 'var(--gold)',
             icon: (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -114,7 +119,7 @@ export default function SuperAdminDashboard() {
           },
           {
             label: 'Bugünkü Randevular',
-            value: totalAppointmentsToday,
+            value: todayCount,
             sub: 'tüm işletmeler',
             color: '#6ab4e8',
             icon: (
@@ -127,40 +132,33 @@ export default function SuperAdminDashboard() {
             ),
           },
           {
-            label: 'Aylık Gelir',
-            value: `₺${totalRevenue.toLocaleString('tr-TR')}`,
-            sub: 'tüm planlar',
+            label: 'Aktif İşletme',
+            value: activeCount,
+            sub: 'şu an çalışıyor',
             color: '#4ac478',
             icon: (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
             ),
           },
           {
-            label: 'Bu Ay Kayıt',
-            value: newThisMonth,
-            sub: 'yeni işletme',
+            label: 'Pasif / Askıdaki',
+            value: totalCount - activeCount,
+            sub: 'müdahale gerekli',
             color: '#e8906a',
             icon: (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <line x1="19" y1="8" x2="19" y2="14" />
-                <line x1="22" y1="11" x2="16" y2="11" />
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             ),
           },
         ].map((card) => (
           <div
             key={card.label}
-            style={{
-              background: 'var(--bg2)',
-              border: '1px solid var(--line)',
-              borderRadius: '3px',
-              padding: '22px',
-            }}
+            style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', padding: '22px' }}
           >
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
               <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: '500', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
@@ -178,175 +176,113 @@ export default function SuperAdminDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px' }}>
         {/* Businesses Table */}
-        <div
-          style={{
-            background: 'var(--bg2)',
-            border: '1px solid var(--line)',
-            borderRadius: '3px',
-          }}
-        >
-          <div
-            style={{
-              padding: '18px 20px',
-              borderBottom: '1px solid var(--line)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)' }}>
-              İşletmeler
-            </h2>
-            <a
-              href="/superadmin/isletmeler"
-              style={{ fontSize: '11px', color: 'var(--gold)', textDecoration: 'none' }}
-            >
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px' }}>
+          <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)' }}>İşletmeler</h2>
+            <Link href="/superadmin/isletmeler" style={{ fontSize: '11px', color: 'var(--gold)', textDecoration: 'none' }}>
               Tümünü Gör →
-            </a>
+            </Link>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg)' }}>
-                {['İşletme', 'Plan', 'Durum', 'Randevular', 'Kayıt'].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      padding: '10px 16px',
-                      textAlign: 'left',
-                      fontSize: '10px',
-                      fontWeight: '600',
-                      color: 'var(--muted)',
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
-                      borderBottom: '1px solid var(--line)',
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {businesses.map((b, i) => (
-                <tr key={b.id} style={{ borderBottom: i < businesses.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '3px',
-                          background: 'var(--gold3)',
-                          border: '1px solid rgba(196,154,74,0.2)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          color: 'var(--gold)',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {b.logo}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--white)' }}>{b.name}</div>
-                        <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{b.owner}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <PlanBadge plan={b.plan} />
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <StatusBadge status={b.status} />
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--white)' }}>
-                    {b.appointmentsCount.toLocaleString('tr-TR')}
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '11px', color: 'var(--muted)' }}>
-                    {b.createdAt}
-                  </td>
+          {allBusinesses.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)', fontSize: '13px' }}>
+              Henüz işletme yok.
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg)' }}>
+                  {['İşletme', 'Plan', 'Durum', 'Kayıt'].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: '10px 16px',
+                        textAlign: 'left',
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        color: 'var(--muted)',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        borderBottom: '1px solid var(--line)',
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {allBusinesses.slice(0, 8).map((b, i) => (
+                  <tr key={b.id} style={{ borderBottom: i < Math.min(allBusinesses.length, 8) - 1 ? '1px solid var(--line)' : 'none' }}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div
+                          style={{
+                            width: '28px', height: '28px', borderRadius: '3px',
+                            background: 'var(--gold3)', border: '1px solid rgba(196,154,74,0.2)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '11px', fontWeight: '700', color: 'var(--gold)', flexShrink: 0,
+                          }}
+                        >
+                          {b.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--white)' }}>{b.name}</div>
+                          <div style={{ fontSize: '10px', color: 'var(--muted)' }}>/{b.slug}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px' }}><PlanBadge plan={b.plan} /></td>
+                    <td style={{ padding: '12px 16px' }}><StatusBadge status={b.status} /></td>
+                    <td style={{ padding: '12px 16px', fontSize: '11px', color: 'var(--muted)' }}>
+                      {new Date(b.created_at).toLocaleDateString('tr-TR')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Recent Registrations */}
-        <div
-          style={{
-            background: 'var(--bg2)',
-            border: '1px solid var(--line)',
-            borderRadius: '3px',
-          }}
-        >
-          <div
-            style={{
-              padding: '18px 20px',
-              borderBottom: '1px solid var(--line)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)' }}>
-              Son Kayıtlar
-            </h2>
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px' }}>
+          <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--line)' }}>
+            <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)' }}>Son Kayıtlar</h2>
           </div>
-          <div>
-            {businesses.map((b, i) => (
+          {(recentBusinesses as Business[] ?? []).length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)', fontSize: '13px' }}>Kayıt yok.</div>
+          ) : (
+            (recentBusinesses as Business[] ?? []).map((b, i) => (
               <div
                 key={b.id}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
+                  display: 'flex', alignItems: 'center', gap: '12px',
                   padding: '14px 20px',
-                  borderBottom: i < businesses.length - 1 ? '1px solid var(--line)' : 'none',
+                  borderBottom: i < (recentBusinesses?.length ?? 0) - 1 ? '1px solid var(--line)' : 'none',
                 }}
               >
                 <div
                   style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '3px',
-                    background: 'var(--gold3)',
-                    border: '1px solid rgba(196,154,74,0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    color: 'var(--gold)',
-                    flexShrink: 0,
+                    width: '34px', height: '34px', borderRadius: '3px',
+                    background: 'var(--gold3)', border: '1px solid rgba(196,154,74,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '13px', fontWeight: '700', color: 'var(--gold)', flexShrink: 0,
                     fontFamily: 'DM Serif Display, serif',
                   }}
                 >
-                  {b.logo}
+                  {b.name.charAt(0).toUpperCase()}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      color: 'var(--white)',
-                      marginBottom: '2px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
+                  <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--white)', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {b.name}
                   </div>
                   <div style={{ fontSize: '10px', color: 'var(--muted)' }}>
-                    {b.category} · {b.createdAt}
+                    {new Date(b.created_at).toLocaleDateString('tr-TR')}
                   </div>
                 </div>
                 <PlanBadge plan={b.plan} />
               </div>
-            ))}
-          </div>
+            ))
+          )}
         </div>
       </div>
     </div>

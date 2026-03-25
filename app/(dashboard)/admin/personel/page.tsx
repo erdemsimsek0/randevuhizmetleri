@@ -1,87 +1,150 @@
 'use client'
 
-import { useState } from 'react'
-import { staff as staffData } from '@/lib/mock-data'
+import { useEffect, useState, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import type { Staff } from '@/lib/types'
 
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <svg key={star} width="10" height="10" viewBox="0 0 24 24" fill={star <= Math.floor(rating) ? 'var(--gold)' : 'var(--dim)'} stroke="none">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-        </svg>
-      ))}
-      <span style={{ fontSize: '10px', color: 'var(--muted)', marginLeft: '2px' }}>{rating}</span>
-    </div>
-  )
-}
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '9px 12px',
-  background: 'var(--bg)',
-  border: '1px solid var(--line)',
-  borderRadius: '3px',
-  color: 'var(--white)',
-  fontSize: '13px',
-  outline: 'none',
-}
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: '10px',
-  fontWeight: '500',
-  color: 'var(--muted)',
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
-  marginBottom: '5px',
-}
+const EMPTY_FORM = { name: '', role: 'Uzman', avatar_url: '' }
 
 export default function PersonelPage() {
+  const [staffList, setStaffList] = useState<Staff[]>([])
+  const [loading, setLoading] = useState(true)
+  const [businessId, setBusinessId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
-  const [newStaff, setNewStaff] = useState({
-    name: '',
-    role: '',
-    phone: '',
-    email: '',
-  })
+  const [editItem, setEditItem] = useState<Staff | null>(null)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const supabase = createClient()
+
+  const fetchStaff = useCallback(async (bId: string) => {
+    const { data } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('business_id', bId)
+      .order('created_at', { ascending: true })
+    setStaffList((data as Staff[]) ?? [])
+    setLoading(false)
+  }, [supabase])
+
+  useEffect(() => {
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: profile } = await supabase.from('profiles').select('business_id').eq('id', user.id).single()
+      if (profile?.business_id) {
+        setBusinessId(profile.business_id)
+        await fetchStaff(profile.business_id)
+      } else {
+        setLoading(false)
+      }
+    }
+    init()
+  }, [supabase, fetchStaff])
+
+  function openAdd() {
+    setEditItem(null)
+    setForm(EMPTY_FORM)
+    setError(null)
+    setShowModal(true)
+  }
+
+  function openEdit(s: Staff) {
+    setEditItem(s)
+    setForm({ name: s.name, role: s.role, avatar_url: s.avatar_url ?? '' })
+    setError(null)
+    setShowModal(true)
+  }
+
+  function closeModal() {
+    setShowModal(false)
+    setEditItem(null)
+    setError(null)
+  }
+
+  async function handleSave() {
+    if (!form.name.trim()) { setError('İsim zorunludur.'); return }
+    if (!businessId) return
+    setSaving(true)
+    setError(null)
+
+    if (editItem) {
+      const { error: err } = await supabase
+        .from('staff')
+        .update({ name: form.name, role: form.role, avatar_url: form.avatar_url || null })
+        .eq('id', editItem.id)
+      if (err) { setError('Kaydedilemedi: ' + err.message); setSaving(false); return }
+    } else {
+      const { error: err } = await supabase
+        .from('staff')
+        .insert({ business_id: businessId, name: form.name, role: form.role, avatar_url: form.avatar_url || null, is_active: true })
+      if (err) { setError('Eklenemedi: ' + err.message); setSaving(false); return }
+    }
+
+    await fetchStaff(businessId)
+    setSaving(false)
+    closeModal()
+  }
+
+  async function handleToggleActive(s: Staff) {
+    await supabase.from('staff').update({ is_active: !s.is_active }).eq('id', s.id)
+    setStaffList((prev) => prev.map((x) => x.id === s.id ? { ...x, is_active: !s.is_active } : x))
+  }
+
+  async function handleDelete(id: string) {
+    await supabase.from('staff').delete().eq('id', id)
+    setStaffList((prev) => prev.filter((x) => x.id !== id))
+    setDeleteConfirm(null)
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 12px',
+    background: 'var(--bg)',
+    border: '1px solid var(--line)',
+    borderRadius: '3px',
+    color: 'var(--white)',
+    fontSize: '13px',
+    outline: 'none',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: '11px',
+    fontWeight: '500',
+    color: 'var(--muted)',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    marginBottom: '6px',
+  }
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: '1100px' }}>
+    <div style={{ padding: '32px 36px', maxWidth: '900px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px' }}>
         <div>
-          <h1
-            style={{
-              fontFamily: 'DM Serif Display, serif',
-              fontSize: '24px',
-              color: 'var(--white)',
-              letterSpacing: '-0.02em',
-              marginBottom: '4px',
-            }}
-          >
+          <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: '26px', color: 'var(--white)', letterSpacing: '-0.02em', marginBottom: '6px' }}>
             Personel
           </h1>
-          <p style={{ fontSize: '13px', color: 'var(--muted)' }}>
-            {staffData.filter((s) => s.status === 'Aktif').length} aktif personel
-          </p>
+          <p style={{ fontSize: '13px', color: 'var(--muted)' }}>{staffList.length} personel</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={openAdd}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '9px 16px',
-            background: 'var(--white)',
+            padding: '9px 18px',
+            background: 'var(--gold)',
             border: 'none',
             borderRadius: '3px',
             color: 'var(--bg)',
-            fontSize: '11px',
-            fontWeight: '700',
+            fontSize: '12px',
+            fontWeight: '600',
             letterSpacing: '0.06em',
-            textTransform: 'uppercase',
             cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
           }}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -92,274 +155,246 @@ export default function PersonelPage() {
         </button>
       </div>
 
-      {/* Staff Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '16px',
-        }}
-      >
-        {staffData.map((member) => (
-          <div
-            key={member.id}
-            style={{
-              background: 'var(--bg2)',
-              border: '1px solid var(--line)',
-              borderRadius: '3px',
-              padding: '20px',
-              position: 'relative',
-            }}
-          >
-            {/* Status badge */}
-            <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 8px',
-                  background: member.status === 'Aktif' ? 'rgba(74,196,120,0.1)' : 'rgba(100,100,100,0.1)',
-                  border: `1px solid ${member.status === 'Aktif' ? 'rgba(74,196,120,0.25)' : 'var(--line)'}`,
-                  borderRadius: '2px',
-                  fontSize: '9px',
-                  fontWeight: '600',
-                  color: member.status === 'Aktif' ? '#4ac478' : 'var(--muted)',
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                }}
-              >
+      {/* Grid */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px', color: 'var(--muted)', fontSize: '13px' }}>Yükleniyor...</div>
+      ) : staffList.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px', color: 'var(--muted)', fontSize: '13px' }}>
+          Henüz personel yok. Yukarıdan ekleyebilirsiniz.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
+          {staffList.map((s) => (
+            <div
+              key={s.id}
+              style={{
+                background: 'var(--bg2)',
+                border: '1px solid var(--line)',
+                borderRadius: '3px',
+                padding: '20px',
+                opacity: s.is_active ? 1 : 0.6,
+                transition: 'opacity 0.2s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '50%',
+                    background: 'var(--dim)',
+                    border: '1px solid var(--line2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: 'var(--white)',
+                    flexShrink: 0,
+                  }}
+                >
+                  {s.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--white)', marginBottom: '2px' }}>{s.name}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{s.role}</div>
+                </div>
                 <span
                   style={{
-                    width: '4px',
-                    height: '4px',
-                    borderRadius: '50%',
-                    background: member.status === 'Aktif' ? '#4ac478' : 'var(--muted)',
-                    display: 'inline-block',
+                    fontSize: '10px',
+                    padding: '2px 8px',
+                    borderRadius: '2px',
+                    background: s.is_active ? 'rgba(74,196,120,0.1)' : 'rgba(90,88,80,0.1)',
+                    color: s.is_active ? '#4ac478' : 'var(--muted)',
+                    border: `1px solid ${s.is_active ? 'rgba(74,196,120,0.25)' : 'var(--line)'}`,
+                    fontWeight: '600',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
                   }}
-                />
-                {member.status}
-              </span>
-            </div>
-
-            {/* Avatar */}
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '50%',
-                background: 'var(--dim)',
-                border: '2px solid var(--line2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '16px',
-                fontWeight: '600',
-                color: 'var(--white)',
-                marginBottom: '14px',
-              }}
-            >
-              {member.avatar}
-            </div>
-
-            {/* Info */}
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--white)', marginBottom: '3px' }}>
-                {member.name}
+                >
+                  {s.is_active ? 'Aktif' : 'Pasif'}
+                </span>
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--gold)', marginBottom: '8px' }}>
-                {member.role}
-              </div>
-              <StarRating rating={member.rating} />
-            </div>
 
-            {/* Stats */}
-            <div
-              style={{
-                display: 'flex',
-                gap: '16px',
-                padding: '12px 0',
-                borderTop: '1px solid var(--line)',
-                borderBottom: '1px solid var(--line)',
-                marginBottom: '14px',
-              }}
-            >
-              <div>
-                <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--white)', letterSpacing: '-0.02em' }}>
-                  {member.appointmentsToday}
-                </div>
-                <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: '1px' }}>Bugün</div>
-              </div>
-              <div style={{ width: '1px', background: 'var(--line)' }} />
-              <div>
-                <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--white)', letterSpacing: '-0.02em' }}>
-                  {member.rating}
-                </div>
-                <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: '1px' }}>Puan</div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => openEdit(s)}
+                  style={{
+                    flex: 1,
+                    padding: '7px',
+                    background: 'transparent',
+                    border: '1px solid var(--line)',
+                    borderRadius: '3px',
+                    color: 'var(--muted)',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Düzenle
+                </button>
+                <button
+                  onClick={() => handleToggleActive(s)}
+                  style={{
+                    flex: 1,
+                    padding: '7px',
+                    background: 'transparent',
+                    border: '1px solid var(--line)',
+                    borderRadius: '3px',
+                    color: 'var(--muted)',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {s.is_active ? 'Pasif Yap' : 'Aktif Yap'}
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(s.id)}
+                  style={{
+                    padding: '7px 10px',
+                    background: 'transparent',
+                    border: '1px solid rgba(196,74,74,0.3)',
+                    borderRadius: '3px',
+                    color: '#c44a4a',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                </button>
               </div>
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* Contact */}
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '3px' }}>{member.phone}</div>
-              <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{member.email}</div>
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '8px' }}>
+      {/* Delete Confirm Modal */}
+      {deleteConfirm && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px',
+          }}
+          onClick={() => setDeleteConfirm(null)}
+        >
+          <div
+            style={{
+              background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '4px',
+              padding: '28px', maxWidth: '360px', width: '100%',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--white)', marginBottom: '12px' }}>
+              Personeli Sil
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '24px' }}>
+              Bu personeli silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
               <button
-                style={{
-                  flex: 1,
-                  padding: '7px',
-                  background: 'var(--bg)',
-                  border: '1px solid var(--line)',
-                  borderRadius: '2px',
-                  color: 'var(--white)',
-                  fontSize: '11px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  letterSpacing: '0.04em',
-                }}
+                onClick={() => setDeleteConfirm(null)}
+                style={{ flex: 1, padding: '9px', background: 'transparent', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--muted)', fontSize: '12px', cursor: 'pointer' }}
               >
-                Düzenle
+                İptal
               </button>
               <button
-                style={{
-                  flex: 1,
-                  padding: '7px',
-                  background: 'rgba(196,74,74,0.08)',
-                  border: '1px solid rgba(196,74,74,0.2)',
-                  borderRadius: '2px',
-                  color: '#c44a4a',
-                  fontSize: '11px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  letterSpacing: '0.04em',
-                }}
+                onClick={() => handleDelete(deleteConfirm)}
+                style={{ flex: 1, padding: '9px', background: 'rgba(196,74,74,0.15)', border: '1px solid rgba(196,74,74,0.3)', borderRadius: '3px', color: '#c44a4a', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
               >
                 Sil
               </button>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* Add Staff Modal */}
+      {/* Add/Edit Modal */}
       {showModal && (
         <div
           style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '24px',
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px',
           }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false) }}
+          onClick={closeModal}
         >
           <div
             style={{
-              background: 'var(--bg2)',
-              border: '1px solid var(--line)',
-              borderRadius: '4px',
-              padding: '28px',
-              width: '100%',
-              maxWidth: '420px',
-              animation: 'fadeUp 0.25s ease both',
+              background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '4px',
+              padding: '28px', maxWidth: '440px', width: '100%',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '15px', fontWeight: '600', color: 'var(--white)' }}>Personel Ekle</h2>
-              <button
-                onClick={() => setShowModal(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}
-              >
-                ×
-              </button>
-            </div>
+            <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--white)', marginBottom: '24px' }}>
+              {editItem ? 'Personeli Düzenle' : 'Yeni Personel'}
+            </h3>
+
+            {error && (
+              <div style={{ padding: '10px 14px', background: 'rgba(196,74,74,0.1)', border: '1px solid rgba(196,74,74,0.25)', borderRadius: '3px', marginBottom: '16px', fontSize: '12px', color: '#c44a4a' }}>
+                {error}
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={labelStyle}>Ad Soyad</label>
                 <input
                   type="text"
-                  value={newStaff.name}
-                  onChange={(e) => setNewStaff((p) => ({ ...p, name: e.target.value }))}
-                  style={inputStyle}
+                  value={form.name}
+                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
                   placeholder="Personel adı"
+                  style={inputStyle}
+                  onFocus={(e) => { e.target.style.borderColor = '#454540' }}
+                  onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
                 />
               </div>
               <div>
                 <label style={labelStyle}>Unvan / Rol</label>
-                <select
-                  value={newStaff.role}
-                  onChange={(e) => setNewStaff((p) => ({ ...p, role: e.target.value }))}
-                  style={{ ...inputStyle, cursor: 'pointer' }}
-                >
-                  <option value="">Rol Seçin</option>
-                  <option value="Berber">Berber</option>
-                  <option value="Stilist">Stilist</option>
-                  <option value="Teknisyen">Teknisyen</option>
-                  <option value="Masör">Masör</option>
-                  <option value="Tırnak Teknisyeni">Tırnak Teknisyeni</option>
-                  <option value="Dövme Sanatçısı">Dövme Sanatçısı</option>
-                  <option value="Yönetici">Yönetici</option>
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Telefon</label>
                 <input
-                  type="tel"
-                  value={newStaff.phone}
-                  onChange={(e) => setNewStaff((p) => ({ ...p, phone: e.target.value }))}
+                  type="text"
+                  value={form.role}
+                  onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
+                  placeholder="Örn: Berber, Stilist, Uzman"
                   style={inputStyle}
-                  placeholder="05xx xxx xx xx"
+                  onFocus={(e) => { e.target.style.borderColor = '#454540' }}
+                  onBlur={(e) => { e.target.style.borderColor = 'var(--line)' }}
                 />
               </div>
-              <div>
-                <label style={labelStyle}>E-posta</label>
-                <input
-                  type="email"
-                  value={newStaff.email}
-                  onChange={(e) => setNewStaff((p) => ({ ...p, email: e.target.value }))}
-                  style={inputStyle}
-                  placeholder="personel@isletme.com"
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                <button
-                  onClick={() => setShowModal(false)}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    background: 'transparent',
-                    border: '1px solid var(--line)',
-                    borderRadius: '3px',
-                    color: 'var(--muted)',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  İptal
-                </button>
-                <button
-                  style={{
-                    flex: 2,
-                    padding: '10px',
-                    background: 'var(--white)',
-                    border: 'none',
-                    borderRadius: '3px',
-                    color: 'var(--bg)',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    letterSpacing: '0.04em',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Personel Ekle
-                </button>
-              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
+              <button
+                onClick={closeModal}
+                style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid var(--line)', borderRadius: '3px', color: 'var(--muted)', fontSize: '12px', cursor: 'pointer' }}
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                style={{
+                  flex: 1, padding: '10px',
+                  background: saving ? 'var(--dim)' : 'var(--gold)',
+                  border: 'none', borderRadius: '3px',
+                  color: saving ? 'var(--muted)' : 'var(--bg)',
+                  fontSize: '12px', fontWeight: '600',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {saving ? 'Kaydediliyor...' : editItem ? 'Kaydet' : 'Ekle'}
+              </button>
             </div>
           </div>
         </div>

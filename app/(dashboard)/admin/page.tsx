@@ -1,20 +1,16 @@
-import { appointments, staff, currentBusiness } from '@/lib/mock-data'
-
-const todayAppointments = appointments.filter((a) => a.date === '2026-03-25')
-const pendingAppointments = appointments.filter((a) => a.status === 'Bekliyor')
-const activeStaff = staff.filter((s) => s.status === 'Aktif')
-const monthlyRevenue = appointments
-  .filter((a) => a.status !== 'İptal')
-  .reduce((sum, a) => sum + a.price, 0)
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import type { Appointment, Staff } from '@/lib/types'
+import Link from 'next/link'
 
 function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string; border: string }> = {
-    'Onaylandı': { bg: 'rgba(74,196,120,0.1)', color: '#4ac478', border: 'rgba(74,196,120,0.25)' },
-    'Bekliyor': { bg: 'var(--gold3)', color: 'var(--gold)', border: 'rgba(196,154,74,0.25)' },
-    'İptal': { bg: 'rgba(196,74,74,0.1)', color: '#c44a4a', border: 'rgba(196,74,74,0.25)' },
-    'Tamamlandı': { bg: 'rgba(100,100,100,0.1)', color: 'var(--muted)', border: 'var(--line)' },
+  const colors: Record<string, { bg: string; color: string; border: string; label: string }> = {
+    onaylandi: { bg: 'rgba(74,196,120,0.1)', color: '#4ac478', border: 'rgba(74,196,120,0.25)', label: 'Onaylandı' },
+    bekliyor: { bg: 'var(--gold3)', color: 'var(--gold)', border: 'rgba(196,154,74,0.25)', label: 'Bekliyor' },
+    iptal: { bg: 'rgba(196,74,74,0.1)', color: '#c44a4a', border: 'rgba(196,74,74,0.25)', label: 'İptal' },
+    tamamlandi: { bg: 'rgba(100,100,100,0.1)', color: 'var(--muted)', border: 'var(--line)', label: 'Tamamlandı' },
   }
-  const c = colors[status] || colors['Tamamlandı']
+  const c = colors[status] || colors['tamamlandi']
   return (
     <span
       style={{
@@ -31,12 +27,71 @@ function StatusBadge({ status }: { status: string }) {
         textTransform: 'uppercase',
       }}
     >
-      {status}
+      {c.label}
     </span>
   )
 }
 
-export default function AdminDashboard() {
+export default async function AdminDashboard() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.business_id) {
+    return (
+      <div style={{ padding: '32px 36px' }}>
+        <p style={{ color: 'var(--muted)', fontSize: '14px' }}>İşletme bulunamadı. Lütfen kayıt işlemini tamamlayın.</p>
+      </div>
+    )
+  }
+
+  const businessId = profile.business_id
+  const today = new Date().toISOString().split('T')[0]
+  const monthStart = today.slice(0, 7) + '-01'
+
+  const [
+    { data: business },
+    { data: todayAppointments },
+    { data: monthAppointments },
+    { data: staffList },
+    { data: recentAppointments },
+    { data: pendingAppointments },
+  ] = await Promise.all([
+    supabase.from('businesses').select('name, slug').eq('id', businessId).single(),
+    supabase.from('appointments').select('id').eq('business_id', businessId).eq('date', today),
+    supabase.from('appointments').select('id').eq('business_id', businessId).gte('date', monthStart),
+    supabase.from('staff').select('*').eq('business_id', businessId).eq('is_active', true),
+    supabase
+      .from('appointments')
+      .select('*, service:services(name), staff:staff(name)')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false })
+      .limit(6),
+    supabase
+      .from('appointments')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('status', 'bekliyor'),
+  ])
+
+  const todayCount = todayAppointments?.length ?? 0
+  const monthCount = monthAppointments?.length ?? 0
+  const staffCount = staffList?.length ?? 0
+  const pendingCount = pendingAppointments?.length ?? 0
+  const businessName = business?.name ?? 'İşletme'
+
+  const now = new Date()
+  const days = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi']
+  const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+  const dateStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}, ${days[now.getDay()]}`
+
   return (
     <div style={{ padding: '32px 36px', maxWidth: '1100px' }}>
       {/* Header */}
@@ -45,15 +100,7 @@ export default function AdminDashboard() {
           <span style={{ fontSize: '12px', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
             İyi günler
           </span>
-          <span
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: '#4ac478',
-              display: 'inline-block',
-            }}
-          />
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ac478', display: 'inline-block' }} />
         </div>
         <h1
           style={{
@@ -64,28 +111,21 @@ export default function AdminDashboard() {
             marginBottom: '4px',
           }}
         >
-          {currentBusiness.name}
+          {businessName}
         </h1>
         <p style={{ fontSize: '13px', color: 'var(--muted)' }}>
-          25 Mart 2026, Çarşamba — Platform durumu normal
+          {dateStr} — Platform durumu normal
         </p>
       </div>
 
       {/* Stat Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '16px',
-          marginBottom: '32px',
-        }}
-      >
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
         {[
           {
             label: 'Bugünkü Randevular',
-            value: todayAppointments.length,
-            trend: '+2',
-            trendUp: true,
+            value: todayCount,
+            sub: 'bugün',
+            color: 'var(--gold)',
             icon: (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -94,26 +134,23 @@ export default function AdminDashboard() {
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
             ),
-            color: 'var(--gold)',
           },
           {
-            label: 'Aylık Gelir',
-            value: `₺${monthlyRevenue.toLocaleString('tr-TR')}`,
-            trend: '+12%',
-            trendUp: true,
+            label: 'Aylık Randevular',
+            value: monthCount,
+            sub: 'bu ay',
+            color: '#4ac478',
             icon: (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
             ),
-            color: '#4ac478',
           },
           {
             label: 'Aktif Personel',
-            value: activeStaff.length,
-            trend: 'Sabit',
-            trendUp: null,
+            value: staffCount,
+            sub: 'çalışan',
+            color: '#6ab4e8',
             icon: (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -122,20 +159,18 @@ export default function AdminDashboard() {
                 <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
             ),
-            color: '#6ab4e8',
           },
           {
             label: 'Bekleyen Randevular',
-            value: pendingAppointments.length,
-            trend: '+1',
-            trendUp: false,
+            value: pendingCount,
+            sub: 'onay bekliyor',
+            color: 'var(--gold)',
             icon: (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
             ),
-            color: 'var(--gold)',
           },
         ].map((card) => (
           <div
@@ -156,70 +191,23 @@ export default function AdminDashboard() {
             <div style={{ fontSize: '26px', fontWeight: '700', color: 'var(--white)', letterSpacing: '-0.02em', marginBottom: '8px' }}>
               {card.value}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {card.trendUp !== null && (
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  style={{ color: card.trendUp ? '#4ac478' : '#c44a4a' }}
-                >
-                  {card.trendUp ? (
-                    <path d="M6 2l4 4H8v4H4V6H2l4-4z" fill="currentColor" />
-                  ) : (
-                    <path d="M6 10L2 6h2V2h4v4h2L6 10z" fill="currentColor" />
-                  )}
-                </svg>
-              )}
-              <span
-                style={{
-                  fontSize: '11px',
-                  color: card.trendUp === true ? '#4ac478' : card.trendUp === false ? '#c44a4a' : 'var(--muted)',
-                  fontWeight: '500',
-                }}
-              >
-                {card.trend} geçen aya göre
-              </span>
-            </div>
+            <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{card.sub}</div>
           </div>
         ))}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '20px' }}>
         {/* Recent Appointments Table */}
-        <div
-          style={{
-            background: 'var(--bg2)',
-            border: '1px solid var(--line)',
-            borderRadius: '3px',
-          }}
-        >
-          <div
-            style={{
-              padding: '18px 20px',
-              borderBottom: '1px solid var(--line)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px' }}>
+          <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)', letterSpacing: '0.01em' }}>
               Son Randevular
             </h2>
-            <a
-              href="/admin/randevular"
-              style={{
-                fontSize: '11px',
-                color: 'var(--gold)',
-                textDecoration: 'none',
-                letterSpacing: '0.04em',
-              }}
-            >
+            <Link href="/admin/randevular" style={{ fontSize: '11px', color: 'var(--gold)', textDecoration: 'none', letterSpacing: '0.04em' }}>
               Tümünü Gör →
-            </a>
+            </Link>
           </div>
-          <div>
+          {recentAppointments && recentAppointments.length > 0 ? (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -244,26 +232,17 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {appointments.slice(0, 6).map((apt, i) => (
-                  <tr
-                    key={apt.id}
-                    style={{
-                      borderBottom: i < 5 ? '1px solid var(--line)' : 'none',
-                    }}
-                  >
+                {(recentAppointments as (Appointment & { service?: { name: string }; staff?: { name: string } | null })[]).map((apt, i) => (
+                  <tr key={apt.id} style={{ borderBottom: i < recentAppointments.length - 1 ? '1px solid var(--line)' : 'none' }}>
                     <td style={{ padding: '12px 20px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--white)' }}>
-                        {apt.customerName}
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--muted)' }}>
-                        {apt.customerPhone}
-                      </div>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--white)' }}>{apt.customer_name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{apt.customer_phone}</div>
                     </td>
                     <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--white)' }}>
-                      {apt.service}
+                      {apt.service?.name ?? '—'}
                     </td>
                     <td style={{ padding: '12px 20px', fontSize: '12px', color: 'var(--muted)' }}>
-                      {apt.staff}
+                      {apt.staff?.name ?? '—'}
                     </td>
                     <td style={{ padding: '12px 20px' }}>
                       <div style={{ fontSize: '12px', color: 'var(--white)' }}>{apt.time}</div>
@@ -276,37 +255,35 @@ export default function AdminDashboard() {
                 ))}
               </tbody>
             </table>
-          </div>
+          ) : (
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: '13px' }}>
+              Henüz randevu yok
+            </div>
+          )}
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions + Staff */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div
-            style={{
-              background: 'var(--bg2)',
-              border: '1px solid var(--line)',
-              borderRadius: '3px',
-              padding: '20px',
-            }}
-          >
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', padding: '20px' }}>
             <h2 style={{ fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '16px' }}>
               Hızlı Eylemler
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {[
                 {
-                  label: 'Randevu Ekle',
+                  label: 'Randevular',
                   href: '/admin/randevular',
                   icon: (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="4" width="18" height="18" rx="2" />
-                      <line x1="12" y1="8" x2="12" y2="16" />
-                      <line x1="8" y1="12" x2="16" y2="12" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
                     </svg>
                   ),
                 },
                 {
-                  label: 'Personel Ekle',
+                  label: 'Personel Yönet',
                   href: '/admin/personel',
                   icon: (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -318,7 +295,7 @@ export default function AdminDashboard() {
                   ),
                 },
                 {
-                  label: 'Hizmet Ekle',
+                  label: 'Hizmetler',
                   href: '/admin/hizmetler',
                   icon: (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -328,8 +305,18 @@ export default function AdminDashboard() {
                     </svg>
                   ),
                 },
+                {
+                  label: 'Ayarlar',
+                  href: '/admin/ayarlar',
+                  icon: (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                  ),
+                },
               ].map((action) => (
-                <a
+                <Link
                   key={action.label}
                   href={action.href}
                   style={{
@@ -350,64 +337,59 @@ export default function AdminDashboard() {
                   <span style={{ color: 'var(--gold)' }}>{action.icon}</span>
                   {action.label}
                   <span style={{ marginLeft: 'auto', color: 'var(--muted)' }}>→</span>
-                </a>
+                </Link>
               ))}
             </div>
           </div>
 
-          {/* Today's Staff */}
-          <div
-            style={{
-              background: 'var(--bg2)',
-              border: '1px solid var(--line)',
-              borderRadius: '3px',
-              padding: '20px',
-            }}
-          >
-            <h2 style={{ fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '16px' }}>
-              Bugün Çalışan
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {staff.filter((s) => s.status === 'Aktif').slice(0, 4).map((s) => (
-                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      background: 'var(--dim)',
-                      border: '1px solid var(--line2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '10px',
-                      fontWeight: '600',
-                      color: 'var(--white)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {s.avatar}
+          {/* Active Staff */}
+          {staffList && staffList.length > 0 && (
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px', padding: '20px' }}>
+              <h2 style={{ fontSize: '11px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '16px' }}>
+                Aktif Personel
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {(staffList as Staff[]).slice(0, 4).map((s) => (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        background: 'var(--dim)',
+                        border: '1px solid var(--line2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        color: 'var(--white)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {s.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--white)' }}>{s.name}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{s.role}</div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        color: '#4ac478',
+                        background: 'rgba(74,196,120,0.1)',
+                        border: '1px solid rgba(74,196,120,0.2)',
+                        padding: '1px 6px',
+                        borderRadius: '2px',
+                      }}
+                    >
+                      Aktif
+                    </span>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--white)' }}>{s.name}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{s.appointmentsToday} randevu</div>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '10px',
-                      color: '#4ac478',
-                      background: 'rgba(74,196,120,0.1)',
-                      border: '1px solid rgba(74,196,120,0.2)',
-                      padding: '1px 6px',
-                      borderRadius: '2px',
-                    }}
-                  >
-                    Aktif
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

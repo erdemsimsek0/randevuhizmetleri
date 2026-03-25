@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
   {
@@ -62,6 +63,7 @@ const navItems = [
 
 export default function SuperAdminSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
 
   const isActive = (href: string) => {
     if (href === '/superadmin') return pathname === '/superadmin'
@@ -256,6 +258,12 @@ export default function SuperAdminSidebar() {
           </div>
         </div>
         <button
+          onClick={async () => {
+            const supabase = createClient()
+            await supabase.auth.signOut()
+            router.push('/login')
+            router.refresh()
+          }}
           style={{
             width: '100%',
             padding: '7px 12px',

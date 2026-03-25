@@ -2,11 +2,43 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    const supabase = createClient()
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (authError) {
+      if (authError.message.includes('Invalid login credentials')) {
+        setError('E-posta veya şifre hatalı. Lütfen tekrar deneyin.')
+      } else if (authError.message.includes('Email not confirmed')) {
+        setError('E-posta adresiniz henüz doğrulanmamış. Lütfen gelen kutunuzu kontrol edin.')
+      } else {
+        setError('Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.')
+      }
+      setLoading(false)
+      return
+    }
+
+    router.push('/admin')
+    router.refresh()
+  }
 
   return (
     <div
@@ -68,35 +100,13 @@ export default function LoginPage() {
             </svg>
           </div>
           <div>
-            <span
-              style={{
-                fontFamily: 'DM Serif Display, serif',
-                fontSize: '22px',
-                color: 'var(--white)',
-                letterSpacing: '-0.01em',
-              }}
-            >
+            <span style={{ fontFamily: 'DM Serif Display, serif', fontSize: '22px', color: 'var(--white)', letterSpacing: '-0.01em' }}>
               randevu
             </span>
-            <span
-              style={{
-                fontFamily: 'DM Serif Display, serif',
-                fontSize: '22px',
-                fontStyle: 'italic',
-                color: 'var(--gold)',
-                letterSpacing: '-0.01em',
-              }}
-            >
+            <span style={{ fontFamily: 'DM Serif Display, serif', fontSize: '22px', fontStyle: 'italic', color: 'var(--gold)', letterSpacing: '-0.01em' }}>
               hizmetleri
             </span>
-            <span
-              style={{
-                fontFamily: 'DM Serif Display, serif',
-                fontSize: '22px',
-                color: 'var(--muted)',
-                letterSpacing: '-0.01em',
-              }}
-            >
+            <span style={{ fontFamily: 'DM Serif Display, serif', fontSize: '22px', color: 'var(--muted)', letterSpacing: '-0.01em' }}>
               .com
             </span>
           </div>
@@ -111,22 +121,30 @@ export default function LoginPage() {
             padding: '32px',
           }}
         >
-          <h1
-            style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              color: 'var(--white)',
-              marginBottom: '6px',
-              letterSpacing: '-0.01em',
-            }}
-          >
+          <h1 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--white)', marginBottom: '6px', letterSpacing: '-0.01em' }}>
             Giriş Yap
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '28px' }}>
             Hesabınıza erişmek için bilgilerinizi girin.
           </p>
 
-          <form onSubmit={(e) => e.preventDefault()} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {error && (
+            <div
+              style={{
+                padding: '10px 14px',
+                background: 'rgba(196,74,74,0.1)',
+                border: '1px solid rgba(196,74,74,0.25)',
+                borderRadius: '3px',
+                marginBottom: '16px',
+                fontSize: '12px',
+                color: '#c44a4a',
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label
                 style={{
@@ -146,6 +164,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="isletme@domain.com"
+                required
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -164,25 +183,10 @@ export default function LoginPage() {
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '500',
-                    color: 'var(--muted)',
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                  }}
-                >
+                <label style={{ fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   Şifre
                 </label>
-                <a
-                  href="#"
-                  style={{
-                    fontSize: '11px',
-                    color: 'var(--gold)',
-                    textDecoration: 'none',
-                  }}
-                >
+                <a href="#" style={{ fontSize: '11px', color: 'var(--gold)', textDecoration: 'none' }}>
                   Şifremi Unuttum
                 </a>
               </div>
@@ -192,6 +196,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  required
                   style={{
                     width: '100%',
                     padding: '10px 40px 10px 12px',
@@ -240,48 +245,45 @@ export default function LoginPage() {
 
             <button
               type="submit"
+              disabled={loading}
               style={{
                 width: '100%',
                 padding: '11px 16px',
-                background: 'var(--white)',
+                background: loading ? 'var(--dim)' : 'var(--white)',
                 border: 'none',
                 borderRadius: '3px',
-                color: 'var(--bg)',
+                color: loading ? 'var(--muted)' : 'var(--bg)',
                 fontSize: '12px',
                 fontWeight: '600',
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                cursor: 'pointer',
+                cursor: loading ? 'not-allowed' : 'pointer',
                 marginTop: '8px',
-                transition: 'opacity 0.15s ease',
+                transition: 'all 0.15s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
               }}
-              onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.opacity = '0.9' }}
-              onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.opacity = '1' }}
             >
-              Giriş Yap
+              {loading ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  Giriş Yapılıyor...
+                </>
+              ) : (
+                'Giriş Yap'
+              )}
             </button>
           </form>
 
-          <div
-            style={{
-              textAlign: 'center',
-              marginTop: '24px',
-              paddingTop: '24px',
-              borderTop: '1px solid var(--line)',
-            }}
-          >
+          <div style={{ textAlign: 'center', marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--line)' }}>
             <span style={{ fontSize: '13px', color: 'var(--muted)' }}>
               Hesabınız yok mu?{' '}
             </span>
-            <Link
-              href="/register"
-              style={{
-                fontSize: '13px',
-                color: 'var(--gold)',
-                textDecoration: 'none',
-                fontWeight: '500',
-              }}
-            >
+            <Link href="/register" style={{ fontSize: '13px', color: 'var(--gold)', textDecoration: 'none', fontWeight: '500' }}>
               Hesap Oluştur
             </Link>
           </div>
@@ -308,6 +310,13 @@ export default function LoginPage() {
           </Link>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }

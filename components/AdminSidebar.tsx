@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { currentBusiness, currentUser } from '@/lib/mock-data'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
   {
@@ -75,12 +75,43 @@ const navItems = [
   },
 ]
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  businessName?: string
+  businessSlug?: string
+  userEmail?: string
+  userName?: string
+}
+
+export default function AdminSidebar({
+  businessName,
+  businessSlug,
+  userEmail,
+  userName,
+}: AdminSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
 
   const isActive = (href: string) => {
     if (href === '/admin') return pathname === '/admin'
     return pathname.startsWith(href)
+  }
+
+  const displayName = businessName || 'İşletme'
+  const displaySlug = businessSlug || 'isletme'
+  const displayUserName = userName || 'Kullanıcı'
+  const displayEmail = userEmail || ''
+  const initials = displayUserName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
+  async function handleSignOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
   }
 
   return (
@@ -99,12 +130,7 @@ export default function AdminSidebar() {
       }}
     >
       {/* Logo Area */}
-      <div
-        style={{
-          padding: '24px 20px',
-          borderBottom: '1px solid var(--line)',
-        }}
-      >
+      <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
           <div
             style={{
@@ -120,9 +146,10 @@ export default function AdminSidebar() {
               fontWeight: '600',
               color: 'var(--gold)',
               fontFamily: 'DM Serif Display, serif',
+              flexShrink: 0,
             }}
           >
-            {currentBusiness.logo}
+            {displayName.charAt(0).toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
@@ -135,7 +162,7 @@ export default function AdminSidebar() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {currentBusiness.name}
+              {displayName}
             </div>
           </div>
         </div>
@@ -151,7 +178,7 @@ export default function AdminSidebar() {
           }}
         >
           <span style={{ fontSize: '10px', color: 'var(--gold)', letterSpacing: '0.04em' }}>
-            @{currentBusiness.slug}
+            @{displaySlug}
           </span>
         </div>
       </div>
@@ -214,20 +241,8 @@ export default function AdminSidebar() {
       </nav>
 
       {/* Bottom User Area */}
-      <div
-        style={{
-          padding: '16px',
-          borderTop: '1px solid var(--line)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            marginBottom: '10px',
-          }}
-        >
+      <div style={{ padding: '16px', borderTop: '1px solid var(--line)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
           <div
             style={{
               width: '30px',
@@ -244,7 +259,7 @@ export default function AdminSidebar() {
               flexShrink: 0,
             }}
           >
-            {currentUser.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+            {initials}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
@@ -257,7 +272,7 @@ export default function AdminSidebar() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {currentUser.name}
+              {displayUserName}
             </div>
             <div
               style={{
@@ -268,11 +283,12 @@ export default function AdminSidebar() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {currentUser.email}
+              {displayEmail}
             </div>
           </div>
         </div>
         <button
+          onClick={handleSignOut}
           style={{
             width: '100%',
             padding: '7px 12px',
