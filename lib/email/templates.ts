@@ -216,6 +216,25 @@ export function appointmentCancelledEmail(data: {
   return emailWrapper(content)
 }
 
+export function requestReviewEmail(data: {
+  customerName: string
+  businessName: string
+  reviewUrl: string
+}): string {
+  const content = `
+  <div class="body">
+    <span class="badge badge-gold">Randevu Tamamlandı</span>
+    <h1 style="margin-top:16px;">Deneyiminizi paylaşır mısınız?</h1>
+    <p>Merhaba <strong style="color:#f5f3ef;">${data.customerName}</strong>, <strong style="color:#f5f3ef;">${data.businessName}</strong> randevunuz tamamlandı. Deneyiminizi paylaşmak ister misiniz?</p>
+    <p style="font-size:13px;">Yorumunuz işletmemizin daha iyi hizmet vermesine yardımcı olur.</p>
+    <a href="${data.reviewUrl}" class="btn">Yorum Yap</a>
+    <div style="margin-top:24px; padding-top:16px; border-top:1px solid #242422; text-align:center;">
+      <p style="font-size:11px; color:#5a5850; margin:0;">Bu e-posta randevunuz tamamlandığı için gönderilmiştir.</p>
+    </div>
+  </div>`
+  return emailWrapper(content)
+}
+
 export function appointmentReminderEmail(data: {
   customerName: string
   businessName: string

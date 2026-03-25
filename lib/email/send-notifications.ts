@@ -3,6 +3,7 @@ import {
   newAppointmentEmail,
   appointmentConfirmedEmail,
   appointmentCancelledEmail,
+  requestReviewEmail,
 } from './templates'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -158,7 +159,7 @@ export async function notifyNewAppointment(appointmentId: string): Promise<void>
 
 export async function notifyStatusChange(appointmentId: string, newStatus: string): Promise<void> {
   try {
-    if (newStatus !== 'onaylandi' && newStatus !== 'iptal') return
+    if (newStatus !== 'onaylandi' && newStatus !== 'iptal' && newStatus !== 'tamamlandi') return
 
     const apt = await fetchAppointment(appointmentId)
     if (!apt) return
@@ -221,6 +222,27 @@ export async function notifyStatusChange(appointmentId: string, newStatus: strin
 
       if (error) {
         console.error('[email] notifyStatusChange (iptal) send error:', error)
+      }
+    } else if (newStatus === 'tamamlandi') {
+      // Send review request to customer if they have an email
+      if (apt.customer_email) {
+        const reviewUrl = `${SITE_URL}/yorum?id=${apt.id}`
+        const html = requestReviewEmail({
+          customerName: apt.customer_name,
+          businessName,
+          reviewUrl,
+        })
+
+        const { error } = await resend.emails.send({
+          from: FROM,
+          to: apt.customer_email,
+          subject: `Deneyiminizi paylaşır mısınız? — ${businessName}`,
+          html,
+        })
+
+        if (error) {
+          console.error('[email] notifyStatusChange (tamamlandi review request) send error:', error)
+        }
       }
     }
   } catch (err) {

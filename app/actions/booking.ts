@@ -15,6 +15,20 @@ export async function createAppointment(data: {
 }) {
   const admin = createAdminClient()
 
+  // Rate limit check — max 3 appointments per phone per business in the last 24 hours
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const { count } = await admin
+    .from('appointments')
+    .select('*', { count: 'exact', head: true })
+    .eq('business_id', data.business_id)
+    .eq('customer_phone', data.customer_phone)
+    .gte('created_at', yesterday.toISOString())
+
+  if ((count ?? 0) >= 3) {
+    return { error: 'Günlük randevu limitine ulaştınız. Lütfen daha sonra tekrar deneyin.' }
+  }
+
   const { data: appointment, error } = await admin
     .from('appointments')
     .insert({
