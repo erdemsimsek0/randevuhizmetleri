@@ -132,7 +132,7 @@ export default function BookingWidget({ business, services, staff, workingHours 
       .single()
 
     if (error) {
-      setBookingError('Randevu alınırken bir hata oluştu. Lütfen tekrar deneyin.')
+      setBookingError('Hata: ' + error.message + ' | Kod: ' + error.code)
       setSubmitting(false)
       return
     }
