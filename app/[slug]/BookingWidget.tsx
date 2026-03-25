@@ -73,7 +73,6 @@ export default function BookingWidget({ business, services, staff, workingHours,
   const [confirmed, setConfirmed] = useState(false)
   const [bookingError, setBookingError] = useState<string | null>(null)
   const [confirmationId, setConfirmationId] = useState<string | null>(null)
-  const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
 
   const supabase = createClient()
   const next7Days = getNext7Days()
@@ -423,49 +422,23 @@ export default function BookingWidget({ business, services, staff, workingHours,
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {products.map((p) => (
-                      <div key={p.id}>
-                        <div
-                          onClick={() => setExpandedProduct(expandedProduct === p.id ? null : p.id)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px',
-                            background: 'var(--bg2)', border: `1px solid ${expandedProduct === p.id ? 'rgba(196,154,74,0.3)' : 'var(--line)'}`,
-                            borderRadius: expandedProduct === p.id ? '3px 3px 0 0' : '3px',
-                            cursor: 'pointer', transition: 'border-color 0.15s',
-                          }}
-                        >
-                          {p.image_url && (
-                            <img src={p.image_url} alt={p.name} style={{ width: '40px', height: '40px', borderRadius: '3px', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--line2)' }} />
-                          )}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)', marginBottom: '2px' }}>{p.name}</div>
-                            {p.description && (
-                              <div style={{ fontSize: '11px', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.description}</div>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--gold)' }}>₺{Number(p.price).toLocaleString('tr-TR')}</span>
-                            <svg
-                              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                              style={{ transition: 'transform 0.2s', transform: expandedProduct === p.id ? 'rotate(180deg)' : 'none' }}
-                            >
-                              <polyline points="6 9 12 15 18 9" />
-                            </svg>
-                          </div>
-                        </div>
-                        {expandedProduct === p.id && (
-                          <div style={{
-                            padding: '14px 14px 16px',
-                            background: 'var(--bg3)', border: '1px solid rgba(196,154,74,0.3)', borderTop: 'none',
-                            borderRadius: '0 0 3px 3px',
-                          }}>
-                            {p.image_url && (
-                              <img src={p.image_url} alt={p.name} style={{ width: '100%', maxHeight: '160px', objectFit: 'cover', borderRadius: '3px', marginBottom: '12px', border: '1px solid var(--line2)' }} />
-                            )}
-                            {p.description && (
-                              <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: '1.6', margin: 0 }}>{p.description}</p>
-                            )}
-                          </div>
+                      <div
+                        key={p.id}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px',
+                          background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px',
+                        }}
+                      >
+                        {p.image_url && (
+                          <img src={p.image_url} alt={p.name} style={{ width: '40px', height: '40px', borderRadius: '3px', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--line2)' }} />
                         )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)', marginBottom: '2px' }}>{p.name}</div>
+                          {p.description && (
+                            <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{p.description}</div>
+                          )}
+                        </div>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--gold)', flexShrink: 0 }}>₺{Number(p.price).toLocaleString('tr-TR')}</span>
                       </div>
                     ))}
                   </div>
