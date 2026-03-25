@@ -98,12 +98,11 @@ export default function BookingWidget({ business, services, staff, workingHours 
     return h?.is_open ?? false
   }
 
-  function getAvailableSlots(d: Date): string[] {
+  function getAllSlots(d: Date): string[] {
     const h = getDayHours(d)
     if (!h || !h.is_open) return []
     const duration = selectedService?.duration ?? 30
-    const all = generateTimeSlots(h.open_time, h.close_time, duration)
-    return all.filter((s) => !bookedSlots.includes(s))
+    return generateTimeSlots(h.open_time, h.close_time, duration)
   }
 
   async function handleSubmit() {
@@ -541,26 +540,33 @@ export default function BookingWidget({ business, services, staff, workingHours 
                     <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)', fontSize: '12px' }}>Yükleniyor...</div>
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                      {getAvailableSlots(selectedDate).length === 0 ? (
+                      {getAllSlots(selectedDate).length === 0 ? (
                         <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px', color: 'var(--muted)', fontSize: '12px' }}>
                           Bu gün için uygun saat yok.
                         </div>
-                      ) : getAvailableSlots(selectedDate).map((slot) => {
+                      ) : getAllSlots(selectedDate).every((s) => bookedSlots.includes(s)) ? (
+                        <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px', color: 'var(--muted)', fontSize: '12px' }}>
+                          Bu gün tüm saatler dolu.
+                        </div>
+                      ) : getAllSlots(selectedDate).map((slot) => {
+                        const isBooked = bookedSlots.includes(slot)
                         const active = selectedTime === slot
                         return (
                           <div
                             key={slot}
-                            onClick={() => setSelectedTime(slot)}
+                            onClick={isBooked ? undefined : () => setSelectedTime(slot)}
                             style={{
                               padding: '10px 8px',
-                              background: active ? 'var(--gold3)' : 'var(--bg2)',
-                              border: `1px solid ${active ? 'var(--gold)' : 'var(--line)'}`,
+                              background: isBooked ? 'var(--bg)' : active ? 'var(--gold3)' : 'var(--bg2)',
+                              border: `1px solid ${isBooked ? 'var(--line)' : active ? 'var(--gold)' : 'var(--line)'}`,
                               borderRadius: '3px',
-                              cursor: 'pointer',
+                              cursor: isBooked ? 'not-allowed' : 'pointer',
                               textAlign: 'center',
                               fontSize: '13px',
                               fontWeight: active ? '700' : '500',
-                              color: active ? 'var(--gold)' : 'var(--white)',
+                              color: isBooked ? 'var(--muted)' : active ? 'var(--gold)' : 'var(--white)',
+                              opacity: isBooked ? 0.45 : 1,
+                              textDecoration: isBooked ? 'line-through' : 'none',
                               transition: 'all 0.15s ease',
                             }}
                           >

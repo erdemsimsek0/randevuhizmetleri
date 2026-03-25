@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import type { Appointment, Staff } from '@/lib/types'
 import Link from 'next/link'
+import RevenueCharts from '@/components/charts/RevenueChart'
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, { bg: string; color: string; border: string; label: string }> = {
@@ -196,7 +197,9 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '20px' }}>
+      <RevenueCharts />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '20px', marginTop: '32px' }}>
         {/* Recent Appointments Table */}
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--line)', borderRadius: '3px' }}>
           <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
