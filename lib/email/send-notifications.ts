@@ -181,7 +181,7 @@ export async function notifyStatusChange(appointmentId: string, newStatus: strin
     const timeFormatted = String(apt.time).slice(0, 5)
 
     if (newStatus === 'onaylandi') {
-      const html = appointmentConfirmedEmail({
+      const confirmedHtml = appointmentConfirmedEmail({
         customerName: apt.customer_name,
         businessName,
         serviceName: apt.service?.name ?? '—',
@@ -191,20 +191,28 @@ export async function notifyStatusChange(appointmentId: string, newStatus: strin
         price: apt.service?.price != null ? formatPrice(apt.service.price) : '—',
         address: apt.business?.address ?? '',
         bookingUrl,
+        cancellationUrl: `${SITE_URL}/randevu-iptal?id=${apt.id}`,
       })
 
-      const { error } = await resend.emails.send({
+      // Notify business owner
+      await resend.emails.send({
         from: FROM,
         to: ownerEmail,
         subject: `Randevu onaylandı — ${apt.customer_name}, ${dateFormatted} ${timeFormatted}`,
-        html,
+        html: confirmedHtml,
       })
 
-      if (error) {
-        console.error('[email] notifyStatusChange (onaylandi) send error:', error)
+      // Notify customer if they have email
+      if (apt.customer_email) {
+        await resend.emails.send({
+          from: FROM,
+          to: apt.customer_email,
+          subject: `Randevunuz Onaylandı — ${businessName}`,
+          html: confirmedHtml,
+        }).catch((e) => console.error('[email] customer confirmed send error:', e))
       }
     } else if (newStatus === 'iptal') {
-      const html = appointmentCancelledEmail({
+      const cancelledHtml = appointmentCancelledEmail({
         customerName: apt.customer_name,
         businessName,
         serviceName: apt.service?.name ?? '—',
@@ -213,15 +221,22 @@ export async function notifyStatusChange(appointmentId: string, newStatus: strin
         bookingUrl,
       })
 
-      const { error } = await resend.emails.send({
+      // Notify business owner
+      await resend.emails.send({
         from: FROM,
         to: ownerEmail,
         subject: `Randevu iptal edildi — ${apt.customer_name}, ${dateFormatted} ${timeFormatted}`,
-        html,
+        html: cancelledHtml,
       })
 
-      if (error) {
-        console.error('[email] notifyStatusChange (iptal) send error:', error)
+      // Notify customer if they have email
+      if (apt.customer_email) {
+        await resend.emails.send({
+          from: FROM,
+          to: apt.customer_email,
+          subject: `Randevunuz İptal Edildi — ${businessName}`,
+          html: cancelledHtml,
+        }).catch((e) => console.error('[email] customer cancelled send error:', e))
       }
     } else if (newStatus === 'tamamlandi') {
       // Send review request to customer if they have an email

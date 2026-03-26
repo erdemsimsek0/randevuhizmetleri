@@ -57,6 +57,18 @@ export default async function AdminDashboard() {
   const today = new Date().toISOString().split('T')[0]
   const monthStart = today.slice(0, 7) + '-01'
 
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0]
+
+  // Monday of current week
+  const nowD = new Date()
+  const dayOfWeek = nowD.getDay()
+  const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  const weekStart = new Date(nowD)
+  weekStart.setDate(nowD.getDate() + diffToMon)
+  const weekStartStr = weekStart.toISOString().split('T')[0]
+
   const [
     { data: business },
     { data: todayAppointments },
@@ -64,6 +76,9 @@ export default async function AdminDashboard() {
     { data: staffList },
     { data: recentAppointments },
     { data: pendingAppointments },
+    { data: rawRevenue },
+    { data: rawWeekly },
+    { data: rawServiceDist },
   ] = await Promise.all([
     supabase.from('businesses').select('name, slug').eq('id', businessId).single(),
     supabase.from('appointments').select('id').eq('business_id', businessId).eq('date', today),
@@ -80,7 +95,66 @@ export default async function AdminDashboard() {
       .select('id')
       .eq('business_id', businessId)
       .eq('status', 'bekliyor'),
+    supabase
+      .from('appointments')
+      .select('date, service:services(price)')
+      .eq('business_id', businessId)
+      .gte('date', thirtyDaysAgoStr)
+      .neq('status', 'iptal'),
+    supabase
+      .from('appointments')
+      .select('date')
+      .eq('business_id', businessId)
+      .gte('date', weekStartStr)
+      .lte('date', today)
+      .neq('status', 'iptal'),
+    supabase
+      .from('appointments')
+      .select('service:services(name)')
+      .eq('business_id', businessId)
+      .gte('date', thirtyDaysAgoStr)
+      .neq('status', 'iptal'),
   ])
+
+  // Build revenue chart data (last 30 days, grouped by date)
+  const revenueByDate: Record<string, number> = {}
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    revenueByDate[d.toISOString().split('T')[0]] = 0
+  }
+  for (const apt of rawRevenue ?? []) {
+    const price = (apt.service as { price: number } | null)?.price ?? 0
+    if (revenueByDate[apt.date] !== undefined) revenueByDate[apt.date] += price
+  }
+  const revenueChartData = Object.entries(revenueByDate).map(([date, gelir]) => ({
+    day: String(new Date(date + 'T12:00:00').getDate()),
+    gelir,
+  }))
+
+  // Build weekly chart data (Mon–Sun)
+  const dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+  const weeklyByDay = [0, 0, 0, 0, 0, 0, 0]
+  for (const apt of rawWeekly ?? []) {
+    const d = new Date(apt.date + 'T12:00:00').getDay()
+    const idx = d === 0 ? 6 : d - 1
+    weeklyByDay[idx]++
+  }
+  const weeklyChartData = dayNames.map((gun, i) => ({ gun, randevu: weeklyByDay[i] }))
+
+  // Build service distribution data
+  const serviceCount: Record<string, number> = {}
+  for (const apt of rawServiceDist ?? []) {
+    const name = (apt.service as { name: string } | null)?.name ?? 'Diğer'
+    serviceCount[name] = (serviceCount[name] ?? 0) + 1
+  }
+  const total = Object.values(serviceCount).reduce((a, b) => a + b, 0)
+  const serviceChartData = Object.entries(serviceCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => ({
+      name,
+      value: total > 0 ? Math.round((count / total) * 100) : 0,
+    }))
 
   const todayCount = todayAppointments?.length ?? 0
   const monthCount = monthAppointments?.length ?? 0
@@ -197,7 +271,7 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
-      <RevenueCharts />
+      <RevenueCharts revenueData={revenueChartData} weeklyData={weeklyChartData} serviceData={serviceChartData} />
 
       <div className="dashboard-bottom-grid">
         {/* Recent Appointments Table */}

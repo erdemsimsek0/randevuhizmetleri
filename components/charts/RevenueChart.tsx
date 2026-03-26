@@ -15,43 +15,7 @@ import {
   Bar,
 } from 'recharts'
 
-// Generate mock daily revenue for last 30 days
-function generateRevenueData() {
-  const data = []
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
-    const day = d.getDate()
-    const base = 800 + Math.random() * 1200
-    data.push({
-      day: String(day),
-      gelir: Math.round(base),
-    })
-  }
-  return data
-}
-
-const revenueData = generateRevenueData()
-
-const serviceData = [
-  { name: 'Saç Kesimi', value: 38 },
-  { name: 'Manikür', value: 24 },
-  { name: 'Masaj', value: 19 },
-  { name: 'Cilt Bakımı', value: 13 },
-  { name: 'Diğer', value: 6 },
-]
-
 const SERVICE_COLORS = ['#c49a4a', '#e8c06a', '#555555', '#242424', '#1C1C1C']
-
-function generateWeeklyData() {
-  const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
-  return days.map((d) => ({
-    gun: d,
-    randevu: Math.floor(Math.random() * 12) + 1,
-  }))
-}
-
-const weeklyData = generateWeeklyData()
 
 const tooltipStyle = {
   contentStyle: {
@@ -65,7 +29,13 @@ const tooltipStyle = {
   itemStyle: { color: '#c49a4a' },
 }
 
-export default function RevenueCharts() {
+interface Props {
+  revenueData: { day: string; gelir: number }[]
+  weeklyData: { gun: string; randevu: number }[]
+  serviceData: { name: string; value: number }[]
+}
+
+export default function RevenueCharts({ revenueData, weeklyData, serviceData }: Props) {
   return (
     <div style={{ marginTop: '32px' }}>
       {/* Revenue Area Chart */}
@@ -154,48 +124,49 @@ export default function RevenueCharts() {
             </h2>
           </div>
           <div style={{ padding: '16px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <ResponsiveContainer width={110} height={110}>
-                <PieChart>
-                  <Pie
-                    data={serviceData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={30}
-                    outerRadius={50}
-                    paddingAngle={2}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {serviceData.map((_, idx) => (
-                      <Cell key={idx} fill={SERVICE_COLORS[idx % SERVICE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={tooltipStyle.contentStyle}
-                    itemStyle={tooltipStyle.itemStyle}
-                    formatter={(v: unknown) => [`%${v}`, '']}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {serviceData.map((item, idx) => (
-                  <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div
-                      style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '2px',
-                        background: SERVICE_COLORS[idx % SERVICE_COLORS.length],
-                        flexShrink: 0,
-                      }}
+            {serviceData.length === 0 ? (
+              <p style={{ fontSize: '12px', color: 'var(--muted)', textAlign: 'center', padding: '20px 0' }}>Henüz veri yok</p>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <ResponsiveContainer width={110} height={110}>
+                  <PieChart>
+                    <Pie
+                      data={serviceData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={30}
+                      outerRadius={50}
+                      paddingAngle={2}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {serviceData.map((_, idx) => (
+                        <Cell key={idx} fill={SERVICE_COLORS[idx % SERVICE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={tooltipStyle.contentStyle}
+                      itemStyle={tooltipStyle.itemStyle}
+                      formatter={(v: unknown) => [`%${v}`, '']}
                     />
-                    <span style={{ fontSize: '11px', color: 'var(--muted)', flex: 1 }}>{item.name}</span>
-                    <span style={{ fontSize: '11px', color: 'var(--white)', fontWeight: '600' }}>{item.value}%</span>
-                  </div>
-                ))}
+                  </PieChart>
+                </ResponsiveContainer>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {serviceData.map((item, idx) => (
+                    <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div
+                        style={{
+                          width: '8px', height: '8px', borderRadius: '2px',
+                          background: SERVICE_COLORS[idx % SERVICE_COLORS.length], flexShrink: 0,
+                        }}
+                      />
+                      <span style={{ fontSize: '11px', color: 'var(--muted)', flex: 1 }}>{item.name}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--white)', fontWeight: '600' }}>{item.value}%</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -210,7 +181,7 @@ export default function RevenueCharts() {
         >
           <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--line)' }}>
             <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--white)', letterSpacing: '0.01em' }}>
-              Haftalık Randevular
+              Bu Hafta
             </h2>
           </div>
           <div style={{ padding: '16px 8px 12px' }}>

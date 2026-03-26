@@ -65,7 +65,7 @@ export default function BookingWidget({ business, services, staff, workingHours,
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
-  const [bookedSlots, setBookedSlots] = useState<string[]>([])
+  const [bookedApts, setBookedApts] = useState<{ time: string; duration: number }[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
@@ -91,7 +91,7 @@ export default function BookingWidget({ business, services, staff, workingHours,
 
     let query = supabase
       .from('appointments')
-      .select('time, staff_id')
+      .select('time, staff_id, service:services(duration)')
       .eq('business_id', business.id)
       .eq('date', dateStr)
       .neq('status', 'iptal')
@@ -101,10 +101,41 @@ export default function BookingWidget({ business, services, staff, workingHours,
     }
 
     query.then(({ data }) => {
-      setBookedSlots((data ?? []).map((a) => String(a.time).slice(0, 5)))
+      setBookedApts(
+        (data ?? []).map((a) => ({
+          time: String(a.time).slice(0, 5),
+          duration: (a.service as { duration: number } | null)?.duration ?? 30,
+        }))
+      )
       setLoadingSlots(false)
     })
   }, [selectedDate, selectedStaff, business.id, supabase])
+
+  const hasStaff = staff.length > 0
+
+  function timeToMin(t: string): number {
+    const [h, m] = t.split(':').map(Number)
+    return h * 60 + m
+  }
+
+  function isSlotBooked(slot: string): boolean {
+    const slotMin = timeToMin(slot)
+    const slotDur = selectedService?.duration ?? 30
+    return bookedApts.some(({ time, duration }) => {
+      const bookedMin = timeToMin(time)
+      return slotMin < bookedMin + duration && bookedMin < slotMin + slotDur
+    })
+  }
+
+  function goNext() {
+    if (step === 1) setStep(hasStaff ? 2 : 3)
+    else setStep((p) => p + 1)
+  }
+
+  function goPrev() {
+    if (step === 3 && !hasStaff) setStep(1)
+    else setStep((p) => p - 1)
+  }
 
   function getDayHours(d: Date): WorkingHours | null {
     return workingHours.find((h) => h.day === d.getDay()) ?? null
@@ -188,7 +219,7 @@ export default function BookingWidget({ business, services, staff, workingHours,
 
   const progressSteps = [
     { n: 1, label: 'Hizmet' },
-    { n: 2, label: 'Usta' },
+    ...(hasStaff ? [{ n: 2, label: 'Usta' }] : []),
     { n: 3, label: 'Tarih' },
     { n: 4, label: 'Bilgi' },
   ]
@@ -445,6 +476,20 @@ export default function BookingWidget({ business, services, staff, workingHours,
                 </p>
               )}
 
+              {/* Google Maps */}
+              {business.address && (
+                <div style={{ marginBottom: '16px', borderRadius: '3px', overflow: 'hidden', border: '1px solid var(--line)' }}>
+                  <iframe
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent(business.address)}&output=embed&hl=tr`}
+                    width="100%"
+                    height="180"
+                    style={{ border: 'none', display: 'block' }}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                </div>
+              )}
+
               {/* Products Section */}
               {products.length > 0 && (
                 <div style={{ marginBottom: '8px' }}>
@@ -693,12 +738,12 @@ export default function BookingWidget({ business, services, staff, workingHours,
                         <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px', color: 'var(--muted)', fontSize: '12px' }}>
                           Bu gün için uygun saat yok.
                         </div>
-                      ) : getAllSlots(selectedDate).every((s) => bookedSlots.includes(s)) ? (
+                      ) : getAllSlots(selectedDate).every((s) => isSlotBooked(s)) ? (
                         <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px', color: 'var(--muted)', fontSize: '12px' }}>
                           Bu gün tüm saatler dolu.
                         </div>
                       ) : getAllSlots(selectedDate).map((slot) => {
-                        const isBooked = bookedSlots.includes(slot)
+                        const isBooked = isSlotBooked(slot)
                         const active = selectedTime === slot
                         return (
                           <div
@@ -844,7 +889,7 @@ export default function BookingWidget({ business, services, staff, workingHours,
           <div style={{ display: 'flex', gap: '10px' }}>
             {step > 1 && (
               <button
-                onClick={() => setStep((p) => p - 1)}
+                onClick={goPrev}
                 style={{
                   flex: '0 0 auto',
                   padding: '12px 18px',
@@ -865,7 +910,7 @@ export default function BookingWidget({ business, services, staff, workingHours,
                 onClick={() => {
                   if (step === 1 && !selectedService) return
                   if (step === 3 && (!selectedDate || !selectedTime)) return
-                  setStep((p) => p + 1)
+                  goNext()
                 }}
                 disabled={(step === 1 && !selectedService) || (step === 3 && (!selectedDate || !selectedTime))}
                 style={{

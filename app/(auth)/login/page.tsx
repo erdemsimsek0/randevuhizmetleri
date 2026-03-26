@@ -186,9 +186,9 @@ export default function LoginPage() {
                 <label style={{ fontSize: '11px', fontWeight: '500', color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   Şifre
                 </label>
-                <a href="#" style={{ fontSize: '11px', color: 'var(--gold)', textDecoration: 'none' }}>
+                <Link href="/sifremi-unuttum" style={{ fontSize: '11px', color: 'var(--gold)', textDecoration: 'none' }}>
                   Şifremi Unuttum
-                </a>
+                </Link>
               </div>
               <div style={{ position: 'relative' }}>
                 <input
